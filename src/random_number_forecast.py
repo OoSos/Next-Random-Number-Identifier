@@ -284,5 +284,5 @@ def main(file_path):
     print("Cold numbers to consider:", [n for n in cold_numbers if n not in recent_numbers])
 
 if __name__ == "__main__":
-    file_path = r"C:\Users\Owner\Super Lotto\Superball Selector\Historical Random Numbers.csv"
+    file_path = "data/historical_random_numbers.csv"
     main(file_path)
