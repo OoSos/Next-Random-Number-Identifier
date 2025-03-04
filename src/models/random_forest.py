@@ -1,10 +1,11 @@
 # Standard library imports
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 # Third-party imports
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # Local application imports
 from models.base_model import BaseModel
@@ -48,6 +49,26 @@ class RandomForestModel(BaseModel):
         
         self.params = params
         self.model = RandomForestRegressor(**self.params)
+        self.performance_metrics: Dict[str, float] = {}
+        
+    def preprocess(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> Tuple[pd.DataFrame, Optional[pd.Series]]:
+        """
+        Preprocess input data for Random Forest model.
+        
+        Args:
+            X (pd.DataFrame): Input features
+            y (pd.Series, optional): Target variable
+            
+        Returns:
+            Tuple[pd.DataFrame, Optional[pd.Series]]: Preprocessed features and target
+        """
+        # Ensure numerical features
+        X = X.select_dtypes(include=[np.number])
+        
+        # Handle missing values
+        X = X.fillna(X.mean())
+        
+        return X, y
         
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'RandomForestModel':
         """
@@ -61,15 +82,18 @@ class RandomForestModel(BaseModel):
         Returns:
             self: The fitted model instance
         """
+        # Preprocess data
+        X_processed, y_processed = self.preprocess(X, y)
+        
         # Ensure data types are correct
-        X = X.astype(float)
-        y = y.astype(float)
+        X_processed = X_processed.astype(float)
+        y_processed = y_processed.astype(float)
         
         # Fit the model
-        self.model.fit(X, y)
+        self.model.fit(X_processed, y_processed)
         
         # Store feature importance
-        self.feature_importance_ = dict(zip(X.columns, 
+        self.feature_importance_ = dict(zip(X_processed.columns, 
                                           self.model.feature_importances_))
         
         return self
@@ -87,11 +111,71 @@ class RandomForestModel(BaseModel):
         """
         if self.model is None:
             raise ValueError("Model must be fitted before making predictions")
+        
+        # Preprocess data
+        X_processed, _ = self.preprocess(X)
             
         # Ensure data types are correct
-        X = X.astype(float)
+        X_processed = X_processed.astype(float)
         
-        return self.model.predict(X)
+        return self.model.predict(X_processed)
+    
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Get uncertainty estimates for predictions using the fitted Random Forest model.
+        For regression, this returns the standard deviation of individual tree predictions.
+        
+        Args:
+            X: Features to make predictions for
+            
+        Returns:
+            np.ndarray: Standard deviation of predictions across trees (uncertainty measure)
+        """
+        if self.model is None:
+            raise ValueError("Model must be fitted before making predictions")
+            
+        # Preprocess data
+        X_processed, _ = self.preprocess(X)
+        X_processed = X_processed.astype(float)
+        
+        # Get predictions from all estimators
+        predictions = np.array([tree.predict(X_processed) for tree in self.model.estimators_])
+        
+        # Calculate standard deviation across trees
+        return np.std(predictions, axis=0)
+    
+    def evaluate(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, float]:
+        """
+        Evaluate model performance using multiple regression metrics.
+        
+        Args:
+            X (pd.DataFrame): Test features
+            y (pd.Series): True target values
+            
+        Returns:
+            Dict[str, float]: Dictionary of performance metrics
+        """
+        # Preprocess data
+        X_processed, y_processed = self.preprocess(X, y)
+        
+        # Make predictions
+        predictions = self.predict(X_processed)
+        
+        # Calculate metrics
+        mse = mean_squared_error(y_processed, predictions)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_processed, predictions)
+        r2 = r2_score(y_processed, predictions)
+        
+        # Store metrics
+        self.performance_metrics = {
+            'mse': float(mse),
+            'rmse': float(rmse),
+            'mae': float(mae),
+            'r2': float(r2)
+        }
+        
+        return self.performance_metrics
     
     def get_feature_importance(self) -> Dict[str, float]:
         """
@@ -120,5 +204,23 @@ class RandomForestModel(BaseModel):
             'n_features': len(self.feature_importance_) if self.feature_importance_ else None,
             'n_trees': self.params['n_estimators'],
             'max_depth': self.params.get('max_depth', None),
-            'feature_importance': self.feature_importance_
+            'feature_importance': self.feature_importance_,
+            'performance': self.performance_metrics
         }
+        
+    def get_oob_score(self) -> float:
+        """
+        Get the out-of-bag (OOB) score for the model, if available.
+        The OOB score is an unbiased estimate of the model's performance
+        without requiring a separate test set.
+        
+        Returns:
+            float: OOB score
+        
+        Raises:
+            ValueError: If oob_score was not enabled during initialization
+        """
+        if not hasattr(self.model, 'oob_score_'):
+            raise ValueError("OOB score not available. Enable oob_score=True during model initialization.")
+            
+        return float(self.model.oob_score_)
