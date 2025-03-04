@@ -10,14 +10,17 @@ class MarkovChain(BaseModel):
     Supports variable order and multiple prediction strategies.
     """
     
-    def __init__(self, order: int = 2, smoothing: float = 0.1):
+    def __init__(self, name: str = "MarkovChain", order: int = 2, smoothing: float = 0.1, **kwargs):
         """
         Initialize Markov Chain model.
         
         Args:
+            name (str): Name of the model
             order (int): Order of the Markov Chain (memory length)
             smoothing (float): Laplace smoothing parameter
+            **kwargs: Additional parameters
         """
+        super().__init__(name=name, **kwargs)
         self.order = order
         self.smoothing = smoothing
         self.transition_matrix: Dict[Tuple, Dict[int, float]] = defaultdict(lambda: defaultdict(float))
@@ -38,13 +41,16 @@ class MarkovChain(BaseModel):
     
         return sequences
 
-    def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'BaseModel':
         """
         Fit Markov Chain model to the training data.
         
         Args:
             X (pd.DataFrame): Not used in Markov Chain (kept for consistency)
             y (pd.Series): Training sequence
+            
+        Returns:
+            self: The fitted model instance
         """
         self.unique_numbers = sorted(y.unique())
         sequences = self._create_sequence(y)
@@ -61,6 +67,8 @@ class MarkovChain(BaseModel):
             for next_state in self.unique_numbers:
                 count = self.transition_matrix[state][next_state] + self.smoothing
                 self.transition_matrix[state][next_state] = count / total
+                
+        return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
