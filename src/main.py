@@ -18,6 +18,11 @@ def main():
     df = data_loader.load_csv("historical_random_numbers.csv")
     df = data_loader.preprocess_data(df)
     
+    # Convert 'Super Ball' column to numeric, placing NaN where non-numeric values exist
+    if 'Super Ball' in df.columns:
+        df['Super Ball'] = pd.to_numeric(df['Super Ball'], errors='coerce')
+        df = df[df['Super Ball'].notna()]
+    
     # Create features
     feature_engineer = FeatureEngineer()
     df_features = feature_engineer.transform(df)
@@ -26,6 +31,8 @@ def main():
     feature_selector = FeatureSelector(n_features=20)
     X = df_features.drop(['Date', 'Super Ball'], axis=1).fillna(0)
     y = df_features['Super Ball']
+    print('Checking for NaNs in y:', y.isna().sum())
+    y = y.fillna(y.median())
     feature_selector.fit(X, y)
     X_selected = feature_selector.transform(X)
     
