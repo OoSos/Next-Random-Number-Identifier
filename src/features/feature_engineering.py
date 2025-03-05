@@ -13,8 +13,13 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         self,
         windows: List[int] = [5, 10, 20],
         lags: List[int] = [1, 2, 3, 5, 7, 14],
+        create_time_features: bool = True,
         enable_seasonal: bool = True,
-        enable_cyclical: bool = True
+        enable_cyclical: bool = True,
+        create_lag_features: bool = True,
+        create_rolling_features: bool = True,
+        create_frequency_features: bool = True,
+        create_statistical_features: bool = True
     ):
         """
         Initialize the FeatureEngineer with configurable parameters.
@@ -22,13 +27,23 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         Args:
             windows: List of window sizes for rolling statistics
             lags: List of lag periods for creating lag features
-            enable_seasonal: Enable seasonal feature creation
-            enable_cyclical: Enable cyclical feature creation
+            create_time_features: Whether to create time-based features
+            enable_seasonal: Enable seasonal feature creation (requires create_time_features=True)
+            enable_cyclical: Enable cyclical feature creation (requires create_time_features=True)
+            create_lag_features: Whether to create lag features
+            create_rolling_features: Whether to create rolling statistics features
+            create_frequency_features: Whether to create frequency-based features
+            create_statistical_features: Whether to create statistical features
         """
         self.windows = windows
         self.lags = lags
+        self.create_time_features = create_time_features
         self.enable_seasonal = enable_seasonal
         self.enable_cyclical = enable_cyclical
+        self.create_lag_features = create_lag_features
+        self.create_rolling_features = create_rolling_features
+        self.create_frequency_features = create_frequency_features
+        self.create_statistical_features = create_statistical_features
         self._validate_parameters()
         
     def _validate_parameters(self) -> None:
@@ -55,11 +70,21 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         # Create a copy to avoid modifying original data
         result = df.copy()
         
-        # Create features in sequence
-        result = self._create_time_features(result)
-        result = self._create_rolling_features(result)
-        result = self._create_lag_features(result)
-        result = self._create_statistical_features(result)
+        # Create features in sequence based on configuration
+        if self.create_time_features and 'Date' in result.columns:
+            result = self._create_time_features(result)
+            
+        if self.create_rolling_features and 'Number' in result.columns:
+            result = self._create_rolling_features(result)
+            
+        if self.create_lag_features and 'Number' in result.columns:
+            result = self._create_lag_features(result)
+            
+        if self.create_frequency_features and 'Number' in result.columns:
+            result = self._create_frequency_features(result)
+            
+        if self.create_statistical_features and 'Number' in result.columns:
+            result = self._create_statistical_features(result)
         
         return result
 
@@ -77,6 +102,9 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         df['DayOfYear'] = df['Date'].dt.dayofyear
         df['WeekOfYear'] = df['Date'].dt.isocalendar().week
         df['Quarter'] = df['Date'].dt.quarter
+        
+        # Calculate interval days between dates
+        df['IntervalDays'] = df['Date'].diff().dt.days
         
         if self.enable_cyclical:
             # Cyclical encoding for periodic features
@@ -148,16 +176,29 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         
         return df
 
+    def _create_frequency_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Create frequency-based features.
+        """
+        target_col = 'Number'
+        
+        # Create frequency counts
+        number_counts = df[target_col].value_counts()
+        df['Frequency'] = df[target_col].map(number_counts)
+        df['FrequencyNorm'] = df['Frequency'] / len(df)
+        
+        # Hot and Cold numbers
+        median_freq = number_counts.median()
+        df['IsHot'] = df[target_col].map(lambda x: number_counts[x] > median_freq)
+        df['IsCold'] = df[target_col].map(lambda x: number_counts[x] < median_freq)
+        
+        return df
+
     def _create_statistical_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Create advanced statistical features.
         """
         target_col = 'Number'
-        
-        # Frequency-based features
-        value_counts = df[target_col].value_counts()
-        df['Frequency'] = df[target_col].map(value_counts)
-        df['FrequencyNorm'] = df['Frequency'] / len(df)
         
         # Deviation features
         mean_val = df[target_col].mean()

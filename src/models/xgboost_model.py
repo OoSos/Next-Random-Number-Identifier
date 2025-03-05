@@ -12,26 +12,31 @@ class XGBoostModel(BaseModel):
     Inherits from BaseModel and implements classification-specific methods.
     """
     
-    def __init__(self, params: Optional[Dict[str, Any]] = None):
+    def __init__(self, n_estimators: int = 100, learning_rate: float = 0.1, random_state: int = 42, **kwargs):
         """
-        Initialize XGBoost model with custom or default parameters.
+        Initialize the XGBoost model.
+        
+        Args:
+            n_estimators: Number of boosting rounds
+            learning_rate: Boosting learning rate
+            random_state: Random seed for reproducibility
+            **kwargs: Additional parameters for XGBClassifier
         """
-        self.default_params = {
-            'n_estimators': 100,
-            'learning_rate': 0.1,
+        super().__init__(name="XGBoost")
+        self.params.update({
+            'n_estimators': n_estimators,
+            'learning_rate': learning_rate,
             'max_depth': 6,
             'min_child_weight': 1,
             'subsample': 0.8,
             'colsample_bytree': 0.8,
             'objective': 'multi:softprob',
-            'random_state': 42,
-            'use_label_encoder': False
-        }
-        
-        self.params = params if params is not None else self.default_params
+            'random_state': random_state,
+            'use_label_encoder': False,
+            **kwargs
+        })
         self.model = XGBClassifier(**self.params)
-        self.feature_importance: Optional[pd.DataFrame] = None
-        # Explicitly declare the type of performance_metrics
+        self.feature_importance_ = None
         self.performance_metrics: Dict[str, float] = {}
 
     def preprocess(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> Tuple[pd.DataFrame, Optional[pd.Series]]:
@@ -53,26 +58,27 @@ class XGBoostModel(BaseModel):
         
         # Adjust target for classification (0-based)
         if y is not None:
-            y = y - 1
+            y = y - 1 if y.min() > 0 else y.copy()
             
         return X, y
 
-    def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'XGBoostModel':
         """
         Fit the XGBoost model to the training data.
         
         Args:
             X (pd.DataFrame): Training features
             y (pd.Series): Training target
+            
+        Returns:
+            self: The fitted model instance
         """
         X_processed, y_processed = self.preprocess(X, y)
         self.model.fit(X_processed, y_processed)
         
         # Calculate feature importance
-        self.feature_importance = pd.DataFrame({
-            'feature': X_processed.columns,
-            'importance': self.model.feature_importances_
-        }).sort_values('importance', ascending=False)
+        self.feature_importance_ = dict(zip(X_processed.columns, self.model.feature_importances_))
+        return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
@@ -84,6 +90,9 @@ class XGBoostModel(BaseModel):
         Returns:
             np.ndarray: Predicted values (adjusted back to original scale)
         """
+        if self.model is None:
+            raise ValueError("Model must be fitted before making predictions")
+            
         X_processed, _ = self.preprocess(X)
         predictions = self.model.predict(X_processed)
         return predictions + 1  # Adjust back to original scale
@@ -98,6 +107,9 @@ class XGBoostModel(BaseModel):
         Returns:
             np.ndarray: Probability predictions for each class
         """
+        if self.model is None:
+            raise ValueError("Model must be fitted before making predictions")
+            
         X_processed, _ = self.preprocess(X)
         return self.model.predict_proba(X_processed)
 
@@ -112,18 +124,13 @@ class XGBoostModel(BaseModel):
         Returns:
             Dict[str, float]: Dictionary of performance metrics
         """
+        if self.model is None:
+            raise ValueError("Model must be fitted before evaluation")
+            
         X_processed, y_processed = self.preprocess(X, y)
-        predictions = self.predict(X_processed)
-        y_pred = predictions - 1  # Adjust predictions for metric calculation
+        y_pred = self.model.predict(X_processed)
         
-        if y_processed is None:
-            raise ValueError("Cannot evaluate model without target values")
-    
-        # Convert to numpy arrays and ensure correct types
-        y_true = np.asarray(y_processed, dtype=np.int64)
-        y_pred = np.asarray(y_pred, dtype=np.int64)
-    
-        # Create new dictionary with explicit float conversion
+        # Create metrics dictionary
         metrics_dict = {
             'accuracy': accuracy_score(y_processed, y_pred),
             'precision': precision_score(y_processed, y_pred, average='weighted'),
@@ -131,18 +138,20 @@ class XGBoostModel(BaseModel):
             'f1': f1_score(y_processed, y_pred, average='weighted')
         }
         
-        return self.performance_metrics
+        # Update performance metrics
+        self.performance_metrics = metrics_dict
+        return metrics_dict
 
-    def get_feature_importance(self) -> pd.DataFrame:
+    def get_feature_importance(self) -> Dict[str, float]:
         """
-        Get feature importance rankings.
+        Get feature importance scores.
         
         Returns:
-            pd.DataFrame: Feature importance rankings
+            Dict[str, float]: Dictionary mapping feature names to importance scores
         """
-        if self.feature_importance is None:
-            raise ValueError("Model must be trained before getting feature importance")
-        return self.feature_importance
+        if self.feature_importance_ is None:
+            raise ValueError("Model must be fitted before getting feature importance")
+        return self.feature_importance_
 
     def get_model_params(self) -> Dict[str, Any]:
         """

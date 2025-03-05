@@ -10,17 +10,16 @@ class MarkovChain(BaseModel):
     Supports variable order and multiple prediction strategies.
     """
     
-    def __init__(self, name: str = "MarkovChain", order: int = 2, smoothing: float = 0.1, **kwargs):
+    def __init__(self, order: int = 2, smoothing: float = 0.1, **kwargs):
         """
         Initialize Markov Chain model.
         
         Args:
-            name (str): Name of the model
             order (int): Order of the Markov Chain (memory length)
             smoothing (float): Laplace smoothing parameter
             **kwargs: Additional parameters
         """
-        super().__init__(name=name, **kwargs)
+        super().__init__(name="MarkovChain", **kwargs)
         self.order = order
         self.smoothing = smoothing
         self.transition_matrix: Dict[Tuple, Dict[int, float]] = defaultdict(lambda: defaultdict(float))
@@ -41,7 +40,7 @@ class MarkovChain(BaseModel):
     
         return sequences
 
-    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'BaseModel':
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'MarkovChain':
         """
         Fit Markov Chain model to the training data.
         
@@ -83,13 +82,18 @@ class MarkovChain(BaseModel):
         if self.unique_numbers is None:
             raise ValueError("Model must be trained before making predictions")
             
+        # Get the most recent state from X
+        if 'Number' in X.columns and len(X) >= self.order:
+            current_state = tuple(X['Number'].tail(self.order))
+        else:
+            # If we don't have enough history, return random predictions
+            return np.array([np.random.choice(self.unique_numbers) for _ in range(len(X))])
+            
         predictions = []
-        recent_numbers = X.iloc[-self.order:]['Number'].tolist()
         
         for _ in range(len(X)):
-            current_state = tuple(recent_numbers[-self.order:])
-            
             if current_state in self.transition_matrix:
+                # Extract probabilities for each possible next state
                 probabilities = [self.transition_matrix[current_state][n] for n in self.unique_numbers]
                 predicted_number = np.random.choice(self.unique_numbers, p=probabilities)
             else:
@@ -97,7 +101,12 @@ class MarkovChain(BaseModel):
                 predicted_number = np.random.choice(self.unique_numbers)
             
             predictions.append(predicted_number)
-            recent_numbers.append(predicted_number)
+            
+            # Update the current state for the next prediction
+            if self.order > 1:
+                current_state = current_state[1:] + (predicted_number,)
+            else:
+                current_state = (predicted_number,)
             
         return np.array(predictions)
 
@@ -114,7 +123,11 @@ class MarkovChain(BaseModel):
         if self.unique_numbers is None:
             raise ValueError("Model must be trained before calculating probabilities")
             
-        current_state = tuple(X.iloc[-self.order:]['Number'].tolist())
+        if 'Number' in X.columns and len(X) >= self.order:
+            current_state = tuple(X['Number'].tail(self.order))
+        else:
+            # Return uniform probabilities if we don't have enough history
+            return np.array([1.0 / len(self.unique_numbers)] * len(self.unique_numbers))
         
         if current_state in self.transition_matrix:
             probabilities = [self.transition_matrix[current_state][n] for n in self.unique_numbers]
@@ -123,6 +136,44 @@ class MarkovChain(BaseModel):
             probabilities = [1.0 / len(self.unique_numbers)] * len(self.unique_numbers)
             
         return np.array(probabilities)
+
+    def evaluate(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, float]:
+        """
+        Evaluate model performance. For Markov Chain, this is a placeholder
+        since traditional classification metrics don't apply directly.
+        
+        Args:
+            X (pd.DataFrame): Contains historical data
+            y (pd.Series): True target values
+            
+        Returns:
+            Dict[str, float]: Performance metrics
+        """
+        if self.unique_numbers is None:
+            raise ValueError("Model must be trained before evaluation")
+            
+        # Calculate simple accuracy by comparing next-state predictions
+        correct = 0
+        total = 0
+        
+        for i in range(len(X) - self.order):
+            current_state = tuple(X.iloc[i:i+self.order]['Number'].tolist())
+            actual_next = y.iloc[i+self.order]
+            
+            if current_state in self.transition_matrix:
+                probabilities = [self.transition_matrix[current_state][n] for n in self.unique_numbers]
+                predicted_idx = np.argmax(probabilities)
+                predicted_next = self.unique_numbers[predicted_idx]
+                
+                if predicted_next == actual_next:
+                    correct += 1
+                total += 1
+        
+        accuracy = correct / total if total > 0 else 0.0
+        metrics = {'accuracy': accuracy}
+        
+        self.performance_metrics = metrics
+        return metrics
 
     def get_transition_matrix(self) -> pd.DataFrame:
         """
@@ -161,10 +212,11 @@ class MarkovChain(BaseModel):
     def get_feature_importance(self) -> Dict[str, float]:
         """
         Get feature importance for Markov Chain model based on transition probabilities.
-    
+        Uses both state frequency and transition probability distributions.
+        
         Returns:
             Dict[str, float]: Dictionary mapping state patterns to their importance scores
-    
+        
         Raises:
             ValueError: If the model hasn't been trained yet
         """
@@ -173,12 +225,23 @@ class MarkovChain(BaseModel):
         
         importance_dict: Dict[str, float] = {}
     
-        # Calculate importance based on transition probability variations
+        # Calculate importance based on a combination of:
+        # 1. State frequency (how common is this state)
+        # 2. Transition entropy (how predictable is the next state)
+        total_states = sum(self.state_counts.values())
+        
         for state in self.transition_matrix:
+            # Frequency component
+            state_freq = self.state_counts[state] / total_states if total_states > 0 else 0
+            
+            # Entropy/predictability component (variance of transition probabilities)
             probs = list(self.transition_matrix[state].values())
             if probs:
-                # Higher variance indicates more importance
-                importance = float(np.std(probs))
+                predictability = float(np.std(probs))
+                
+                # Combine both metrics - states that are both common and have predictable
+                # transitions are most important
+                importance = state_freq * predictability
                 state_str = f"state_{'_'.join(map(str, state))}"
                 importance_dict[state_str] = importance
     
