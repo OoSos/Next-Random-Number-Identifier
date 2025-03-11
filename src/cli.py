@@ -1,5 +1,5 @@
 import argparse
-import pandas as pd
+import pandas as pd  # Standard import convention for pandas
 from main import main
 from utils.data_loader import DataLoader
 from utils.monitoring_pipeline import setup_monitoring, run_monitoring_cycle
@@ -15,13 +15,33 @@ def parse_args():
     parser.add_argument('--monitor', action='store_true', help='Enable model monitoring')
     return parser.parse_args()
 
+def clean_data(file_path):
+    df = pd.read_csv(file_path)
+    print(f"Before cleaning: {df.shape}, NaN count: {df.isna().sum().sum()}")
+    
+    # Fill NaN values first
+    df = df.ffill().bfill()  # Use the updated syntax instead of deprecated method
+    
+    # Then drop any remaining NaN values
+    df.dropna(inplace=True)
+    
+    cleaned_file_path = file_path.replace('.csv', '_cleaned.csv')
+    if cleaned_file_path == file_path:  # Ensure we don't overwrite the original file
+        cleaned_file_path = file_path.replace('.csv', '_cleaned.csv')
+    
+    df.to_csv(cleaned_file_path, index=False)
+    print(f"After cleaning: {df.shape}, NaN count: {df.isna().sum().sum()}")
+    return cleaned_file_path
+
 def run_cli():
     """Run the CLI application with parsed arguments."""
     args = parse_args()
     
+    cleaned_data_path = clean_data(args.data)
+    
     # Run the main functionality
     if args.mode == 'train':
-        print(f"Training model: {args.model} using data: {args.data}")
+        print(f"Training model: {args.model} using data: {cleaned_data_path}")
         results = main()
         
         # Enable monitoring if requested
@@ -39,7 +59,7 @@ def run_cli():
         data_loader = DataLoader("data")
         
         # Load new data for prediction
-        df = data_loader.load_csv(args.data)
+        df = data_loader.load_csv(cleaned_data_path)
         df = data_loader.preprocess_data(df)
         
         # Make predictions with selected model

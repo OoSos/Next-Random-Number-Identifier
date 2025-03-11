@@ -2,7 +2,7 @@ from typing import Dict, Tuple, List, Optional
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-from .base_model import BaseModel
+from src.models.base_model import BaseModel
 
 class MarkovChain(BaseModel):
     """

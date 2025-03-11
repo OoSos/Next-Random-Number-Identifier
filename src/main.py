@@ -1,14 +1,14 @@
 import pandas as pd
-from utils.data_loader import DataLoader
-from features.feature_engineering import FeatureEngineer
-from features.feature_selection import FeatureSelector
-from models.random_forest import RandomForestModel
-from models.xgboost_model import XGBoostModel
-from models.markov_chain import MarkovChain
-from models.ensemble import EnhancedEnsemble
-from models.hybrid_forecaster import HybridForecaster
-from utils.evaluation import ModelEvaluator
-from visualization.plots import plot_predictions, plot_feature_importance
+from src.utils.data_loader import DataLoader
+from src.features.feature_engineering import FeatureEngineer
+from src.features.feature_selection import FeatureSelector
+from .models.random_forest import RandomForestModel
+from .models.xgboost_model import XGBoostModel
+from .models.markov_chain import MarkovChain
+from .models.ensemble import EnhancedEnsemble
+from .models.hybrid_forecaster import HybridForecaster
+from src.utils.evaluation import ModelEvaluator
+from src.visualization.plots import plot_predictions, plot_feature_importance
 
 def main():
     # Initialize data loader
@@ -18,14 +18,21 @@ def main():
     df = data_loader.load_csv("historical_random_numbers.csv")
     df = data_loader.preprocess_data(df)
     
+    # Convert 'Super Ball' column to numeric, placing NaN where non-numeric values exist
+    if 'Super Ball' in df.columns:
+        df['Super Ball'] = pd.to_numeric(df['Super Ball'], errors='coerce')
+        df = df[df['Super Ball'].notna()]
+    
     # Create features
     feature_engineer = FeatureEngineer()
     df_features = feature_engineer.transform(df)
     
     # Select important features
     feature_selector = FeatureSelector(n_features=20)
-    X = df_features.drop(['Date', 'Super Ball'], axis=1).fillna(0)
-    y = df_features['Super Ball']
+    X = df_features.drop(['Date', 'Number'], axis=1).fillna(0)
+    y = df_features['Number']
+    print('Checking for NaNs in y:', y.isna().sum())
+    y = y.fillna(y.median())
     feature_selector.fit(X, y)
     X_selected = feature_selector.transform(X)
     
