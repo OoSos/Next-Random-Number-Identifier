@@ -4,7 +4,7 @@ import pandas as pd
 from numpy.typing import ArrayLike
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from .base_model import BaseModel
+from src.models.base_model import BaseModel
 
 class XGBoostModel(BaseModel):
     """

@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 # Local application imports
-from models.base_model import BaseModel
+from src.models.base_model import BaseModel
 
 class RandomForestModel(BaseModel):
     """
