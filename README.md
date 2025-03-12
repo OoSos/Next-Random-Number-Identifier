@@ -5,6 +5,7 @@ A machine learning-based system for analyzing and forecasting random number sequ
 - XGBoost Classification
 - Markov Chain Analysis
 - Frequency Analysis
+- Enhanced Ensemble Integration
 
 ## Project Structure
 - `src/`: Source code files

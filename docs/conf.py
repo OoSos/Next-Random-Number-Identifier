@@ -1,4 +1,3 @@
-# ...content from sphinx-config.py...
 """
 Sphinx configuration file for Next Random Number Identifier documentation.
 """

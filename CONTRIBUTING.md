@@ -1,4 +1,3 @@
-# ...existing content from contributing-guide.md...
 # Contributing to Next Random Number Identifier
 
 Thank you for considering contributing to the Next Random Number Identifier project! This document outlines the process and guidelines for contributing.
