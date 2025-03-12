@@ -33,4 +33,4 @@
 - [ ] The code coverage percentage hasn't decreased.
 
 ## Performance Impact
-<!--- Please describe any relevant performance impact of this change. -->
+

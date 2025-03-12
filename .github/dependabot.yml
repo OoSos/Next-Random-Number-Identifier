@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Maintain dependencies for Python packages
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    reviewers:
+      - "[YOUR-USERNAME]"
+    commit-message:
+      prefix: "pip"
+      include: "scope"
+
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "github-actions"
+    reviewers:
+      - "[YOUR-USERNAME]"
+    commit-message:
+      prefix: "github-actions"
+      include: "scope"
