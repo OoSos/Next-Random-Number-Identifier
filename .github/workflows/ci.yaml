@@ -1,10 +1,13 @@
-name: Next Random Number Identifier CI/CD
+name: Enhanced CI
 
 on:
   push:
     branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master, develop ]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
 
 jobs:
   test:
@@ -76,7 +79,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f requirements.txt]; then pip install -r requirements.txt; fi
         pip install sphinx sphinx_rtd_theme
     
     - name: Build documentation
