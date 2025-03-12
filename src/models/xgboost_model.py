@@ -32,7 +32,6 @@ class XGBoostModel(BaseModel):
             'colsample_bytree': 0.8,
             'objective': 'multi:softprob',
             'random_state': random_state,
-            'use_label_encoder': False,
             **kwargs
         })
         self.model = XGBClassifier(**self.params)

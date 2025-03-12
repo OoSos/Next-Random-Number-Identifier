@@ -2,11 +2,11 @@ import pandas as pd
 from src.utils.data_loader import DataLoader
 from src.features.feature_engineering import FeatureEngineer
 from src.features.feature_selection import FeatureSelector
-from .models.random_forest import RandomForestModel
-from .models.xgboost_model import XGBoostModel
-from .models.markov_chain import MarkovChain
-from .models.ensemble import EnhancedEnsemble
-from .models.hybrid_forecaster import HybridForecaster
+from src.models.random_forest import RandomForestModel
+from src.models.xgboost_model import XGBoostModel
+from src.models.markov_chain import MarkovChain
+from src.models.ensemble import EnhancedEnsemble
+from src.models.hybrid_forecaster import HybridForecaster
 from src.utils.evaluation import ModelEvaluator
 from src.visualization.plots import plot_predictions, plot_feature_importance
 
@@ -18,10 +18,10 @@ def main():
     df = data_loader.load_csv("historical_random_numbers.csv")
     df = data_loader.preprocess_data(df)
     
-    # Convert 'Super Ball' column to numeric, placing NaN where non-numeric values exist
-    if 'Super Ball' in df.columns:
-        df['Super Ball'] = pd.to_numeric(df['Super Ball'], errors='coerce')
-        df = df[df['Super Ball'].notna()]
+    # Convert 'Number' column to numeric, placing NaN where non-numeric values exist
+    if 'Number' in df.columns:
+        df['Number'] = pd.to_numeric(df['Number'], errors='coerce')
+        df = df[df['Number'].notna()]
     
     # Create features
     feature_engineer = FeatureEngineer()
@@ -38,7 +38,7 @@ def main():
     
     # Split data
     X_train, X_test, y_train, y_test = data_loader.split_data(
-        pd.concat([X_selected, y], axis=1), 'Super Ball'
+        pd.concat([X_selected, y], axis=1), 'Number'
     )
     
     # Train individual models
