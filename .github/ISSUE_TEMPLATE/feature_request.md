@@ -23,4 +23,4 @@ Add any other context or screenshots about the feature request here.
 How will this feature impact existing functionality?
 
 **Performance considerations**
-Any performance implications of the proposed feature?
+

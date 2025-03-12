@@ -55,14 +55,8 @@ def create_directory_structure():
         else:
             print(f"File already exists: {full_path}")
 
-    # Handle existing random_number_forecast.py
-    old_file = project_root / 'src' / 'random_number_forecast.py'
-    if old_file.exists():
-        backup_file = project_root / 'src' / 'random_number_forecast.py.bak'
-        shutil.copy2(old_file, backup_file)
-        print(f"\nBacked up existing random_number_forecast.py to: {backup_file}")
-
     print("\nDirectory structure created successfully!")
+    
     print("\nNext steps:")
     print("1. Review the created directory structure")
     print("2. Copy the provided base_model.py content to src/models/base_model.py")
