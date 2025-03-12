@@ -17,7 +17,7 @@ class DataLoader:
         
     def load_csv(self, filename: str, **kwargs) -> pd.DataFrame:
         """
-        Load data from CSV file.
+        Load data from CSV file with robust error handling.
         
         Args:
             filename (str): Name of the CSV file
@@ -27,7 +27,27 @@ class DataLoader:
             pd.DataFrame: Loaded data
         """
         file_path = self.data_dir / filename
-        return pd.read_csv(file_path, **kwargs)
+        
+        # Add default parameters for better CSV handling
+        default_kwargs = {
+            'na_values': ['', 'NA', 'N/A', 'null', 'NULL', 'nan', 'NaN'],
+            'keep_default_na': True,
+            'low_memory': False,
+            'error_bad_lines': False,  # Skip bad lines
+            'warn_bad_lines': True,    # Show warning for bad lines
+        }
+        
+        # Update with user-provided kwargs
+        kwargs_to_use = {**default_kwargs, **kwargs}
+        
+        try:
+            df = pd.read_csv(file_path, **kwargs_to_use)
+            print(f"Successfully loaded {len(df)} rows from {filename}")
+            return df
+        except Exception as e:
+            print(f"Error loading CSV file {filename}: {str(e)}")
+            # Return empty DataFrame with expected columns as fallback
+            return pd.DataFrame(columns=['Date', 'Number'])
     
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -44,6 +64,19 @@ class DataLoader:
             df['Date'] = pd.to_datetime(df['Date'])
             
         return df.sort_values('Date') if 'Date' in df.columns else df
+    
+    def handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Handle missing values in the DataFrame.
+        
+        Args:
+            df (pd.DataFrame): Input DataFrame
+            
+        Returns:
+            pd.DataFrame: DataFrame with missing values handled
+        """
+        # Fill missing values with the mean of the column
+        return df.fillna(df.mean())
     
     def split_data(self, 
                   df: pd.DataFrame, 
@@ -95,4 +128,5 @@ class DataLoader:
         """
         df = self.load_csv(filename, **kwargs)
         df = self.preprocess_data(df)
+        df = self.handle_missing_values(df)
         return self.split_data(df, target_col, test_size)

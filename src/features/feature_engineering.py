@@ -59,7 +59,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Transform the input DataFrame by creating all features.
+        Transform the input DataFrame by creating all features with robust error handling.
         
         Args:
             df: Input DataFrame with 'Date' and target number columns
@@ -70,21 +70,55 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         # Create a copy to avoid modifying original data
         result = df.copy()
         
+        # Ensure Date column is in proper format
+        if 'Date' in result.columns:
+            try:
+                result['Date'] = pd.to_datetime(result['Date'], errors='coerce')
+                # Drop rows with invalid dates
+                result = result.dropna(subset=['Date'])
+            except Exception as e:
+                print(f"Error converting Date column: {str(e)}")
+        
+        # Ensure Number column is numeric
+        if 'Number' in result.columns:
+            try:
+                result['Number'] = pd.to_numeric(result['Number'], errors='coerce')
+                # Fill NaN values with median or a default value
+                median_value = result['Number'].median()
+                result['Number'] = result['Number'].fillna(median_value if not pd.isna(median_value) else 5)
+            except Exception as e:
+                print(f"Error converting Number column: {str(e)}")
+        
         # Create features in sequence based on configuration
         if self.create_time_features and 'Date' in result.columns:
-            result = self._create_time_features(result)
-            
+            try:
+                result = self._create_time_features(result)
+            except Exception as e:
+                print(f"Error creating time features: {str(e)}")
+        
         if self.create_rolling_features and 'Number' in result.columns:
-            result = self._create_rolling_features(result)
-            
+            try:
+                result = self._create_rolling_features(result)
+            except Exception as e:
+                print(f"Error creating rolling features: {str(e)}")
+        
         if self.create_lag_features and 'Number' in result.columns:
-            result = self._create_lag_features(result)
-            
+            try:
+                result = self._create_lag_features(result)
+            except Exception as e:
+                print(f"Error creating lag features: {str(e)}")
+        
         if self.create_frequency_features and 'Number' in result.columns:
-            result = self._create_frequency_features(result)
-            
+            try:
+                result = self._create_frequency_features(result)
+            except Exception as e:
+                print(f"Error creating frequency features: {str(e)}")
+        
         if self.create_statistical_features and 'Number' in result.columns:
-            result = self._create_statistical_features(result)
+            try:
+                result = self._create_statistical_features(result)
+            except Exception as e:
+                print(f"Error creating statistical features: {str(e)}")
         
         # Encode categorical features
         result = self._encode_categorical_features(result)

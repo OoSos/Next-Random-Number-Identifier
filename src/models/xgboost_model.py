@@ -38,7 +38,7 @@ class XGBoostModel(BaseModel):
         self.feature_importance_ = None
         self.performance_metrics: Dict[str, float] = {}
 
-    def preprocess(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> Tuple[pd.DataFrame, Optional[pd.Series]]:
+    def preprocess(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> Tuple[pd.DataFrame, Optional[pd.Series]]: 
         """
         Preprocess input data for XGBoost model.
         
