@@ -16,7 +16,27 @@ def parse_args():
     return parser.parse_args()
 
 def clean_data(file_path):
-    df = pd.read_csv(file_path)
+    try:
+        df = pd.read_csv(file_path)
+    except Exception as e:
+        print(f"Error loading CSV with pandas: {str(e)}")
+        print("Attempting manual CSV loading...")
+        rows = []
+        with open(file_path, 'r') as f:
+            header = f.readline().strip().split(',')
+            for line in f:
+                try:
+                    values = line.strip().split(',')
+                    rows.append(dict(zip(header, values)))
+                except Exception as line_e:
+                    print(f"Error parsing line: {line} - {str(line_e)}")
+        
+        df = pd.DataFrame(rows)
+        if 'Number' in df.columns:
+            df['Number'] = pd.to_numeric(df['Number'], errors='coerce')
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    
     print(f"Before cleaning: {df.shape}, NaN count: {df.isna().sum().sum()}")
     
     # Fill NaN values first
