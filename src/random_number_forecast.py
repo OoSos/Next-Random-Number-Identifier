@@ -10,10 +10,35 @@ from collections import defaultdict
 
 # Load and prepare the data
 def load_data(file_path):
-    df = pd.read_csv(file_path)
-    df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values('Date')
-    return df
+    try:
+        df = pd.read_csv(file_path)
+        df['Date'] = pd.to_datetime(df['Date'])
+        df = df.sort_values('Date')
+        return df
+    except Exception as e:
+        print(f"Error loading CSV with pandas: {str(e)}")
+        print("Attempting manual CSV loading as fallback...")
+        
+        # Manual CSV loading
+        rows = []
+        try:
+            with open(file_path, 'r') as f:
+                header = f.readline().strip().split(',')
+                for line in f:
+                    values = line.strip().split(',')
+                    rows.append(dict(zip(header, values)))
+                    
+            df = pd.DataFrame(rows)
+            if 'Date' in df.columns:
+                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            if 'Number' in df.columns:
+                df['Number'] = pd.to_numeric(df['Number'], errors='coerce')
+            
+            return df.sort_values('Date') if 'Date' in df.columns else df
+        except Exception as inner_e:
+            print(f"Manual loading also failed: {str(inner_e)}")
+            # Return empty DataFrame with expected columns as fallback
+            return pd.DataFrame(columns=['Date', 'Number'])
 
 # Feature engineering with lag features and additional features
 def create_features(df):
