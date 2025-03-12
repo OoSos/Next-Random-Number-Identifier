@@ -18,11 +18,6 @@ def main():
     df = data_loader.load_csv("historical_random_numbers.csv")
     df = data_loader.preprocess_data(df)
     
-    # Convert 'Super Ball' column to numeric, placing NaN where non-numeric values exist
-    if 'Super Ball' in df.columns:
-        df['Super Ball'] = pd.to_numeric(df['Super Ball'], errors='coerce')
-        df = df[df['Super Ball'].notna()]
-    
     # Convert 'Number' column to numeric, placing NaN where non-numeric values exist
     if 'Number' in df.columns:
         df['Number'] = pd.to_numeric(df['Number'], errors='coerce')

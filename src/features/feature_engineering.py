@@ -86,6 +86,9 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         if self.create_statistical_features and 'Number' in result.columns:
             result = self._create_statistical_features(result)
         
+        # Encode categorical features
+        result = self._encode_categorical_features(result)
+        
         return result
 
     def _create_time_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -209,6 +212,21 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         df['IsOutlier'] = abs(df['ZScore']) > 2
         df['IsRepeated'] = df[target_col] == df[target_col].shift(1)
         
+        return df
+
+    def _encode_categorical_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Encode categorical features into numeric values.
+        
+        Args:
+            df: Input DataFrame
+            
+        Returns:
+            DataFrame with encoded categorical features
+        """
+        categorical_columns = df.select_dtypes(include=['object']).columns
+        for col in categorical_columns:
+            df[col] = df[col].astype('category').cat.codes
         return df
 
     @staticmethod
