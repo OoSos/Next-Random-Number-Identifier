@@ -1,5 +1,5 @@
 from statsmodels.tsa.arima.model import ARIMA
-from .base_model import BaseModel
+from src.models.base_model import BaseModel
 
 class HybridForecaster(BaseModel):
     def __init__(self, ml_model, arima_order=(1, 0, 0)):

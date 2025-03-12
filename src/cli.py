@@ -1,8 +1,8 @@
 import argparse
 import pandas as pd  # Standard import convention for pandas
-from main import main
-from utils.data_loader import DataLoader
-from utils.monitoring_pipeline import setup_monitoring, run_monitoring_cycle
+from src.main import main  # Use absolute import for consistency
+from src.utils.data_loader import DataLoader
+from src.utils.monitoring_pipeline import setup_monitoring, run_monitoring_cycle
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Next Random Number Identifier')
