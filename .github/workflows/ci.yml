@@ -1,4 +1,4 @@
-name: Enhanced Next Random Number Identifier CI/CD
+name: CI
 
 on:
   push:
@@ -23,315 +23,34 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip'
-    
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pytest pytest-cov flake8 black isort mypy
-    
+        pip install -e ".[dev,test]"
+        pip install pytest pytest-cov
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
+        
     - name: Check formatting with black
-      run: |
-        black --check src tests
-      continue-on-error: true
-    
-    - name: Check imports with isort
-      run: |
-        isort --check-only --profile black src tests
-      continue-on-error: true
-    
+      run: black --check .
+      
+    - name: Check import sorting with isort
+      run: isort --check .
+      
     - name: Type check with mypy
-      run: |
-        mypy src
-      continue-on-error: true
-    
+      run: mypy src
+      
     - name: Test with pytest
-      run: |
-        pytest --cov=src tests/ --cov-report=xml
-    
-    - name: Upload coverage report
+      run: pytest --cov=src tests/ --cov-report=xml
+      
+    - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
-        fail_ci_if_error: false
-
-  benchmark:
-    runs-on: ubuntu-latest
-    needs: test
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pytest-benchmark
-    
-    - name: Run benchmarks
-      run: |
-        python -c "
-import os
-import json
-import pandas as pd
-from src.models.random_forest import RandomForestModel
-from src.models.xgboost_model import XGBoostModel
-from src.models.markov_chain import MarkovChain
-from src.models.ensemble import EnhancedEnsemble
-from src.features.feature_engineering import FeatureEngineer
-from src.utils.data_loader import DataLoader
-
-# Ensure data directory exists
-os.makedirs('benchmark_results', exist_ok=True)
-
-# Load and prepare data
-data_loader = DataLoader('data')
-df = data_loader.load_csv('historical_random_numbers.csv')
-df = data_loader.preprocess_data(df)
-
-# Create features
-feature_engineer = FeatureEngineer()
-df_features = feature_engineer.transform(df)
-
-# Prepare data for models
-X = df_features.drop(['Date', 'Number'], axis=1).fillna(0)
-y = df_features['Number'].fillna(df_features['Number'].median())
-
-# Initialize models
-models = {
-    'RandomForest': RandomForestModel(),
-    'XGBoost': XGBoostModel(),
-    'MarkovChain': MarkovChain(),
-    'Ensemble': EnhancedEnsemble()
-}
-
-# Train and benchmark each model
-benchmark_results = {}
-for name, model in models.items():
-    # Measure training time
-    import time
-    start_time = time.time()
-    model.fit(X, y)
-    training_time = time.time() - start_time
-    
-    # Measure prediction time
-    start_time = time.time()
-    predictions = model.predict(X.head(100))
-    prediction_time = time.time() - start_time
-    
-    # Store results
-    benchmark_results[name] = {
-        'training_time': training_time,
-        'prediction_time': prediction_time,
-        'training_samples_per_second': len(X) / training_time,
-        'prediction_samples_per_second': 100 / prediction_time
-    }
-
-# Save benchmark results
-with open('benchmark_results/model_performance.json', 'w') as f:
-    json.dump(benchmark_results, f, indent=2)
-
-print('Benchmark results:', benchmark_results)
-        "
-    
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
-      with:
-        name: benchmark-results
-        path: benchmark_results/
-
-  build-docs:
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install sphinx sphinx_rtd_theme
-    
-    - name: Build documentation
-      run: |
-        mkdir -p docs
-        sphinx-quickstart -q -p "Next Random Number Identifier" -a "AIQube Centaur Systems Team" -v "2.0" --ext-autodoc --ext-viewcode docs
-        sphinx-apidoc -o docs/source src
-        cd docs && make html
-    
-    - name: Deploy documentation
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/build/html
-
-  model-drift-check:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    
-    - name: Download previous model metrics
-      uses: actions/download-artifact@v3
-      with:
-        name: model-metrics
-        path: previous-metrics
-      continue-on-error: true
-    
-    - name: Run model drift check
-      run: |
-        python -c "
-import os
-import json
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from src.models.random_forest import RandomForestModel
-from src.models.xgboost_model import XGBoostModel
-from src.models.markov_chain import MarkovChain
-from src.models.ensemble import EnhancedEnsemble
-from src.features.feature_engineering import FeatureEngineer
-from src.utils.data_loader import DataLoader
-from src.utils.monitoring import ModelMonitor
-
-# Ensure directories exist
-os.makedirs('model-metrics', exist_ok=True)
-
-# Load and prepare data
-data_loader = DataLoader('data')
-df = data_loader.load_csv('historical_random_numbers.csv')
-df = data_loader.preprocess_data(df)
-
-# Create features
-feature_engineer = FeatureEngineer()
-df_features = feature_engineer.transform(df)
-
-# Prepare data for models
-X = df_features.drop(['Date', 'Number'], axis=1).fillna(0)
-y = df_features['Number'].fillna(df_features['Number'].median())
-
-# Split into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Initialize models
-models = {
-    'RandomForest': RandomForestModel(),
-    'XGBoost': XGBoostModel(),
-    'MarkovChain': MarkovChain(),
-    'Ensemble': EnhancedEnsemble()
-}
-
-# Train and evaluate each model
-current_metrics = {}
-for name, model in models.items():
-    model.fit(X_train, y_train)
-    if hasattr(model, 'evaluate'):
-        metrics = model.evaluate(X_test, y_test)
-    else:
-        # Fallback for models without evaluate method
-        preds = model.predict(X_test)
-        from sklearn.metrics import mean_squared_error
-        metrics = {'mse': mean_squared_error(y_test, preds)}
-    current_metrics[name] = metrics
-
-# Save current metrics
-with open('model-metrics/current_metrics.json', 'w') as f:
-    json.dump(current_metrics, f, indent=2)
-
-# Check for model drift if previous metrics exist
-drift_detected = False
-if os.path.exists('previous-metrics/current_metrics.json'):
-    try:
-        with open('previous-metrics/current_metrics.json', 'r') as f:
-            previous_metrics = json.load(f)
-        
-        monitor = ModelMonitor()
-        
-        for model_name in current_metrics.keys():
-            if model_name in previous_metrics:
-                monitor.set_baseline(previous_metrics[model_name])
-                monitor.track_performance(current_metrics[model_name])
-                drift_summary = monitor.get_drift_summary()
-                
-                if drift_summary.get('drift_detected', False):
-                    drift_detected = True
-                    print(f'Drift detected for model {model_name}')
-                    print(drift_summary)
-        
-        if drift_detected:
-            print('WARNING: Model drift detected! Performance has changed significantly.')
-        else:
-            print('No significant model drift detected.')
-    except Exception as e:
-        print(f'Error checking for model drift: {str(e)}')
-else:
-    print('No previous metrics found. This will be the baseline for future comparisons.')
-
-# Upload current metrics as artifact
-print('Current model metrics:', current_metrics)
-        "
-    
-    - name: Upload model metrics
-      uses: actions/upload-artifact@v3
-      with:
-        name: model-metrics
-        path: model-metrics/
-
-  package:
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install setuptools wheel twine
-    
-    - name: Build package
-      run: |
-        python setup.py sdist bdist_wheel
-    
-    - name: Upload distribution packages
-      uses: actions/upload-artifact@v3
-      with:
-        name: python-package-distributions
-        path: dist/
+        fail_ci_if_error: true
