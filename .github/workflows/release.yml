@@ -1,0 +1,22 @@
+name: Release Management
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - '.github/ISSUE_TEMPLATE/**'
+
+jobs:
+  semantic-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Python Semantic Release
+        uses: relekang/python-semantic-release@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
