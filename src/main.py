@@ -75,13 +75,6 @@ def debug_file_path(file_name="historical_random_numbers.csv"):
 def main(data_path=None, model_type='ensemble'):
     """
     Main entry point with robust error handling and logging.
-    
-    Args:
-        data_path: Path to the data file. If None, uses default path
-        model_type: Type of model to use ('rf', 'xgb', 'markov', 'ensemble', 'hybrid')
-        
-    Returns:
-        Dict with results including trained models and performance metrics
     """
     setup_logging()
     logger = logging.getLogger(__name__)
@@ -98,34 +91,36 @@ def main(data_path=None, model_type='ensemble'):
             
         logger.info(f"Using data file: {data_path}")
         
-        # Check if file exists before proceeding
+        # Check if file exists
         if not data_path.exists():
             logger.warning(f"Data file {data_path} not found. Running debug path check...")
             path_debug_info = debug_file_path(data_path.name)
+            data_path = Path(path_debug_info["file_path"])
             
-            # If file still doesn't exist, try to create synthetic data
-            if not Path(path_debug_info["file_path"]).exists():
-                logger.warning("Creating synthetic data for modeling")
+            if not data_path.exists():
+                logger.warning("Creating synthetic data for modeling...")
+                # Create synthetic data
                 data_dir = Path(path_debug_info["data_dir"])
                 if not data_dir.exists():
                     data_dir.mkdir(parents=True, exist_ok=True)
                 
-                # Create synthetic data
                 dates = pd.date_range(start='2020-01-01', end='2023-12-31', freq='D')
                 numbers = np.random.randint(1, 11, size=len(dates))
                 df = pd.DataFrame({'Date': dates, 'Number': numbers})
-                
-                # Save synthetic data
                 df.to_csv(data_path, index=False)
                 logger.info(f"Created and saved synthetic data to {data_path}")
             else:
                 data_path = Path(path_debug_info["file_path"])
         
-        # Create data loader
+        # Load and preprocess data with more robust error handling
         data_loader = DataLoader(str(data_path.parent))
-        
-        # Load and preprocess data
         df = data_loader.load_csv(data_path.name)
+        
+        if df.empty:
+            logger.error("Failed to load data. Dataframe is empty.")
+            results['error'] = "Failed to load data"
+            return results
+        
         df = data_loader.preprocess_data(df)
         logger.info(f"Preprocessed data shape: {df.shape}")
         
