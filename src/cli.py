@@ -4,6 +4,7 @@ import pandas as pd  # Standard import convention for pandas
 from pathlib import Path
 from src.main import main, setup_logging  # Use absolute import for consistency
 from src.utils.data_loader import DataLoader
+from src.utils import standardize_column_names  # Import centralized function
 from src.utils.monitoring_pipeline import setup_monitoring, run_monitoring_cycle
 
 try:
@@ -26,28 +27,6 @@ def parse_args():
     parser.add_argument('--clean-data', action='store_true', help='Clean data before processing')
     return parser.parse_args()
 
-def standardize_column_names(df):
-    """
-    Standardize column names across the codebase.
-    
-    Args:
-        df (pd.DataFrame): Input DataFrame
-        
-    Returns:
-        pd.DataFrame: DataFrame with standardized column names
-    """
-    column_mapping = {
-        'Super Ball': 'Number',
-        'super ball': 'Number',
-        'super_ball': 'Number',
-        'superball': 'Number',
-        'SUPER BALL': 'Number',
-        'Ball': 'Number'
-    }
-    
-    # Apply mapping to rename columns
-    return df.rename(columns=column_mapping)
-
 def clean_data(file_path):
     try:
         df = pd.read_csv(file_path)
@@ -66,7 +45,7 @@ def clean_data(file_path):
         
         df = pd.DataFrame(rows)
         
-    # Standardize column names
+    # Standardize column names using the imported function
     df = standardize_column_names(df)
     
     if 'Number' in df.columns:

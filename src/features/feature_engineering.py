@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from scipy import stats
+from ..utils import standardize_column_names  # Import the centralized function
 
 class FeatureEngineer(BaseEstimator, TransformerMixin):
     """
@@ -266,7 +267,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             df[col] = df[col].astype('category').cat.codes
         return df
 
-    def _standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
+    def _standardize_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Standardize column names across the codebase.
         
@@ -276,17 +277,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         Returns:
             pd.DataFrame: DataFrame with standardized column names
         """
-        column_mapping = {
-            'Super Ball': 'Number',
-            'super ball': 'Number',
-            'super_ball': 'Number',
-            'superball': 'Number',
-            'SUPER BALL': 'Number',
-            'Ball': 'Number'
-        }
-        
-        # Apply mapping to rename columns
-        return df.rename(columns=column_mapping)
+        return standardize_column_names(df)
 
     @staticmethod
     def _add_cyclical_features(df: pd.DataFrame, col: str, period: int) -> pd.DataFrame:

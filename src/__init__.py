@@ -11,21 +11,28 @@ Modules:
     - visualization: Contains visualization tools and plotting functions
 """
 
-# Import main components for easier access
-from .models import BaseModel, RandomForestModel
-from .utils import DataLoader
-from .features import FeatureEngineer
-from .visualization import plot_predictions, plot_feature_importance
+# Attempt to import main components with error handling
+try:
+    from .models import BaseModel, RandomForestModel
+    from .utils import DataLoader
+    from .features import FeatureEngineer
+    from .visualization import plot_predictions, plot_feature_importance
 
-# Define what should be available when someone imports your package
-__all__ = [
-    'BaseModel',
-    'RandomForestModel',
-    'DataLoader',
-    'FeatureEngineer',
-    'plot_predictions',
-    'plot_feature_importance',
-]
+    # Define what should be available when someone imports your package
+    __all__ = [
+        'BaseModel',
+        'RandomForestModel',
+        'DataLoader',
+        'FeatureEngineer',
+        'plot_predictions',
+        'plot_feature_importance',
+    ]
+except ImportError as e:
+    import logging
+    logging.warning(f"Some components could not be imported: {str(e)}")
+    # Provide minimal imports that should always work
+    from .utils.data_loader import DataLoader
+    __all__ = ['DataLoader']
 
 # Package metadata
 __version__ = '2.0.0'
