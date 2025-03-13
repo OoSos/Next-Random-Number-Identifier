@@ -1,20 +1,46 @@
 import pandas as pd
-import numpy as np  # Added import for numpy
-from typing import Tuple, Optional
+import numpy as np
+import logging
+from typing import Tuple, Optional, Dict, Any, Union
 from pathlib import Path
 
 class DataLoader:
     """
     Utility class for loading and preprocessing data.
     """
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: str, config: Optional[Dict[str, Any]] = None):
         """
-        Initialize DataLoader with data directory path.
+        Initialize DataLoader with data directory path and optional configuration.
         
         Args:
             data_dir (str): Path to the data directory
+            config (Optional[Dict[str, Any]]): Configuration parameters
         """
         self.data_dir = Path(data_dir)
+        self.config = config or {}
+        self.logger = logging.getLogger(__name__)
+        
+    def standardize_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Standardize column names across the codebase.
+        
+        Args:
+            df (pd.DataFrame): Input DataFrame
+            
+        Returns:
+            pd.DataFrame: DataFrame with standardized column names
+        """
+        column_mapping = {
+            'Super Ball': 'Number',
+            'super ball': 'Number',
+            'super_ball': 'Number',
+            'superball': 'Number',
+            'SUPER BALL': 'Number',
+            'Ball': 'Number'
+        }
+        
+        # Apply mapping to rename columns
+        return df.rename(columns=column_mapping)
         
     def manual_csv_load(self, file_path: Path) -> pd.DataFrame:
         """
@@ -26,7 +52,7 @@ class DataLoader:
         Returns:
             pd.DataFrame: Loaded data
         """
-        print(f"Manually loading CSV file: {file_path}")
+        self.logger.info(f"Manually loading CSV file: {file_path}")
         
         rows = []
         
@@ -34,7 +60,7 @@ class DataLoader:
             with open(file_path, 'r') as f:
                 # Read header
                 header = f.readline().strip().split(',')
-                print(f"Header: {header}")
+                self.logger.info(f"Header: {header}")
                 
                 # Read data
                 for i, line in enumerate(f):
@@ -45,13 +71,13 @@ class DataLoader:
                         
                         # Print first 5 rows for debugging
                         if i < 5:
-                            print(f"Row {i}: {row}")
+                            self.logger.debug(f"Row {i}: {row}")
                     except Exception as e:
-                        print(f"Error parsing line {i}: {line} - {str(e)}")
+                        self.logger.error(f"Error parsing line {i}: {line} - {str(e)}")
                 
-                print(f"Loaded {len(rows)} rows")
+                self.logger.info(f"Loaded {len(rows)} rows")
         except Exception as e:
-            print(f"Error opening CSV file: {str(e)}")
+            self.logger.error(f"Error opening CSV file: {str(e)}")
         
         # Convert to DataFrame
         df = pd.DataFrame(rows)
@@ -62,6 +88,9 @@ class DataLoader:
         
         if 'Date' in df.columns:
             df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        
+        # Apply column name standardization
+        df = self.standardize_column_names(df)
         
         return df
     
@@ -91,25 +120,28 @@ class DataLoader:
         
         try:
             df = pd.read_csv(file_path, **kwargs_to_use)
-            print(f"Successfully loaded file with shape: {df.shape}")
+            self.logger.info(f"Successfully loaded file with shape: {df.shape}")
+            
+            # Standardize column names
+            df = self.standardize_column_names(df)
             
             # Basic data validation
             if df.empty:
-                print(f"Warning: Loaded CSV file {filename} is empty")
+                self.logger.warning(f"Loaded CSV file {filename} is empty")
                 return pd.DataFrame(columns=['Date', 'Number'])
             
             return df
         except Exception as e:
-            print(f"Error loading CSV file with pandas: {str(e)}")
-            print("Attempting manual CSV loading as fallback...")
+            self.logger.error(f"Error loading CSV file with pandas: {str(e)}")
+            self.logger.info("Attempting manual CSV loading as fallback...")
             # Try manual CSV loading as fallback
             df = self.manual_csv_load(file_path)
             
             if df.empty:
-                print("Manual loading produced empty DataFrame")
+                self.logger.warning("Manual loading produced empty DataFrame")
                 return pd.DataFrame(columns=['Date', 'Number'])
                 
-            print(f"Successfully loaded file manually with shape: {df.shape}")
+            self.logger.info(f"Successfully loaded file manually with shape: {df.shape}")
             return df
     
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -165,7 +197,7 @@ class DataLoader:
         
         # Check for empty DataFrame
         if df.empty or len(df) < 2:
-            print("Warning: DataFrame is empty or too small to split. Creating synthetic data.")
+            self.logger.warning("DataFrame is empty or too small to split. Creating synthetic data.")
             # Create synthetic data
             n_samples = 100
             n_features = 5
@@ -178,21 +210,21 @@ class DataLoader:
                                      columns=feature_names)
             y_synthetic = pd.Series(np.random.randint(1, 11, size=n_samples))
             
-            print(f"Created synthetic dataset with {n_samples} samples and {n_features} features")
+            self.logger.info(f"Created synthetic dataset with {n_samples} samples and {n_features} features")
             
             return train_test_split(X_synthetic, y_synthetic, 
                                   test_size=test_size, 
                                   random_state=random_state)
         
         # Normal case with data
-        print(f"Splitting real dataset with {len(df)} samples")
+        self.logger.info(f"Splitting real dataset with {len(df)} samples")
         
         # Check if target column exists
         if target_col not in df.columns:
-            print(f"Warning: Target column '{target_col}' not found in DataFrame. Columns: {df.columns.tolist()}")
+            self.logger.warning(f"Target column '{target_col}' not found in DataFrame. Columns: {df.columns.tolist()}")
             # Create a synthetic target
             df[target_col] = np.random.randint(1, 11, size=len(df))
-            print(f"Created synthetic target column '{target_col}'")
+            self.logger.info(f"Created synthetic target column '{target_col}'")
         
         X = df.drop(columns=[target_col])
         y = df[target_col]
@@ -224,3 +256,51 @@ class DataLoader:
         df = self.preprocess_data(df)
         df = self.handle_missing_values(df)
         return self.split_data(df, target_col, test_size)
+
+
+class DataValidator:
+    """
+    Utility class for validating data quality and integrity.
+    """
+    def __init__(self):
+        """Initialize the DataValidator."""
+        self.logger = logging.getLogger(__name__)
+    
+    def validate_data(self, df: pd.DataFrame) -> Dict[str, Union[bool, list]]:
+        """
+        Comprehensive data validation.
+        
+        Args:
+            df (pd.DataFrame): DataFrame to validate
+            
+        Returns:
+            Dict[str, Union[bool, list]]: Validation report with issues found
+        """
+        validation_report = {
+            'is_valid': True,
+            'issues': []
+        }
+        
+        # Check for missing values
+        if df.isnull().any().any():
+            validation_report['is_valid'] = False
+            validation_report['issues'].append("Missing values detected")
+            
+        # Check for valid number range (1-10)
+        if 'Number' in df.columns and not df['Number'].between(1, 10).all():
+            validation_report['is_valid'] = False
+            validation_report['issues'].append("Numbers outside valid range (1-10)")
+            
+        # Check date continuity (not too many gaps)
+        if 'Date' in df.columns:
+            date_gaps = df['Date'].sort_values().diff().dt.days
+            if date_gaps.max() > 7:  # Configurable threshold
+                validation_report['issues'].append(f"Unusual gap in dates: {date_gaps.max()} days")
+        
+        # Log validation results
+        if validation_report['is_valid']:
+            self.logger.info("Data validation passed")
+        else:
+            self.logger.warning(f"Data validation failed with issues: {validation_report['issues']}")
+            
+        return validation_report

@@ -70,6 +70,9 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         # Create a copy to avoid modifying original data
         result = df.copy()
         
+        # Standardize column names
+        result = self._standardize_column_names(result)
+        
         # Ensure Date column is in proper format
         if 'Date' in result.columns:
             try:
@@ -262,6 +265,28 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         for col in categorical_columns:
             df[col] = df[col].astype('category').cat.codes
         return df
+
+    def _standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Standardize column names across the codebase.
+        
+        Args:
+            df (pd.DataFrame): Input DataFrame
+            
+        Returns:
+            pd.DataFrame: DataFrame with standardized column names
+        """
+        column_mapping = {
+            'Super Ball': 'Number',
+            'super ball': 'Number',
+            'super_ball': 'Number',
+            'superball': 'Number',
+            'SUPER BALL': 'Number',
+            'Ball': 'Number'
+        }
+        
+        # Apply mapping to rename columns
+        return df.rename(columns=column_mapping)
 
     @staticmethod
     def _add_cyclical_features(df: pd.DataFrame, col: str, period: int) -> pd.DataFrame:
