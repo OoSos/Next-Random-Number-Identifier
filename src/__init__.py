@@ -13,9 +13,9 @@ Modules:
 
 # Import main components for easier access
 from .models import BaseModel, RandomForestModel
-from utils import DataLoader
-from features import FeatureEngineer
-from visualization import plot_predictions, plot_feature_importance
+from .utils import DataLoader
+from .features import FeatureEngineer
+from .visualization import plot_predictions, plot_feature_importance
 
 # Define what should be available when someone imports your package
 __all__ = [
