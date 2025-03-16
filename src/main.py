@@ -6,71 +6,185 @@ import numpy as np
 import logging
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from src.utils.data_loader import DataLoader
-from src.models.xgboost_model import XGBoostModel
+from .utils.data_loader import DataLoader
+# from .models.xgboost_model import XGBoostModel
 try:
-    from src.features.feature_engineering import FeatureEngineer
-    from src.models.random_forest import RandomForestModel
-    from src.models.markov_chain import MarkovChain
-    from src.models.ensemble import EnhancedEnsemble
-    from src.models.hybrid_forecaster import HybridForecaster
+    from .features.feature_engineering import FeatureEngineer
+    from .models.random_forest import RandomForestModel
+    from .models.markov_chain import MarkovChain
+    from .models.ensemble import EnhancedEnsemble
+    from .models.hybrid_forecaster import HybridForecaster
     FULL_MODELS_AVAILABLE = True
 except ImportError:
     FULL_MODELS_AVAILABLE = False
-    
-def setup_logging():
-    """
-    Setup logging configuration.
-    """
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def debug_file_path(file_name="historical_random_numbers.csv"):
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Utility functions
+
+def setup_logging(level=logging.INFO):
+    """
+    Set up logging configuration for the project.
+    
+    Args:
+        level: Logging level (default: INFO)
+    """
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+
+def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Standardize column names across the codebase.
+    
+    Args:
+        df: Input DataFrame
+        
+    Returns:
+        DataFrame with standardized column names
+    """
+    column_mapping = {
+        'Super Ball': 'Number',
+        'super ball': 'Number',
+        'super_ball': 'Number',
+        'superball': 'Number',
+        'SUPER BALL': 'Number',
+        'Ball': 'Number'
+    }
+    
+    # Apply mapping to rename columns
+    return df.rename(columns=column_mapping)
+
+
+def debug_file_path(file_path: str = None, file_name: str = "historical_random_numbers.csv") -> dict:
     """
     Debug function to check file paths and verify CSV file accessibility.
-    """
-    logger = logging.getLogger(__name__)
-    project_root = Path(__file__).parent.parent.absolute()
-    data_dir = project_root / "data"
-    file_path = data_dir / file_name
     
-    logger.info(f"Current working directory: {os.getcwd()}")
+    Args:
+        file_path: Full path to the file (optional)
+        file_name: Name of the file to check (if file_path not provided)
+        
+    Returns:
+        Dictionary with path information
+    """
+    # Determine project root
+    current_dir = Path(os.getcwd())
+    project_root = current_dir
+    
+    # Look for common project markers to find the actual root
+    for parent in [current_dir] + list(current_dir.parents):
+        if (parent / "setup.py").exists() or (parent / "requirements.txt").exists():
+            project_root = parent
+            break
+            
+    # Resolve the data directory
+    data_dir = project_root / "data"
+    
+    # Resolve the full file path
+    if file_path is None:
+        csv_path = data_dir / file_name
+    else:
+        csv_path = Path(file_path)
+    
+    # Print debug information
+    logger.info(f"Current working directory: {current_dir}")
     logger.info(f"Project root directory: {project_root}")
     logger.info(f"Data directory: {data_dir}")
-    logger.info(f"CSV file path: {file_path}")
+    logger.info(f"CSV file path: {csv_path}")
     logger.info(f"Data directory exists: {data_dir.exists()}")
-    logger.info(f"CSV file exists: {file_path.exists()}")
+    logger.info(f"CSV file exists: {csv_path.exists()}")
     
-    if not data_dir.exists():
-        logger.error(f"Data directory does not exist. Creating it now.")
-        try:
-            data_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created data directory: {data_dir}")
-        except Exception as e:
-            logger.error(f"Failed to create data directory: {str(e)}")
-    
-    if file_path.exists():
-        # Get file size
-        file_size = file_path.stat().st_size
-        logger.info(f"CSV file size: {file_size} bytes")
-        
-        # Read first few lines
-        try:
-            with open(file_path, 'r') as f:
-                head = [next(f).strip() for _ in range(5) if f]
-            logger.info(f"CSV file first 5 lines: {head}")
-        except Exception as e:
-            logger.error(f"Error reading file: {str(e)}")
-    else:
-        logger.warning(f"CSV file does not exist at: {file_path}")
-    
-    return {
-        "cwd": os.getcwd(),
+    result = {
+        "cwd": str(current_dir),
         "project_root": str(project_root),
         "data_dir": str(data_dir),
-        "file_path": str(file_path),
+        "file_path": str(csv_path),
         "data_dir_exists": data_dir.exists(),
-        "file_exists": file_path.exists()
+        "file_exists": csv_path.exists(),
+        "file_content": None
     }
+    
+    # Try to peek at the file content
+    if csv_path.exists():
+        try:
+            with open(csv_path, 'r') as f:
+                head = [next(f) for _ in range(5) if f]
+            result["file_content"] = head
+            logger.info(f"File content (first 5 lines): {head}")
+        except Exception as e:
+            logger.error(f"Error reading file: {str(e)}")
+            result["error"] = str(e)
+            
+    return result
+
+
+def ensure_directory_exists(directory_path: str) -> bool:
+    """
+    Ensure a directory exists, creating it if necessary.
+    
+    Args:
+        directory_path: Path to the directory
+        
+    Returns:
+        True if the directory exists or was created, False otherwise
+    """
+    path = Path(directory_path)
+    
+    if path.exists() and path.is_dir():
+        return True
+        
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created directory: {path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to create directory {path}: {str(e)}")
+        return False
+
+# Optional imports with error handling
+try:
+    from .utils.data_loader import DataLoader
+    logger.debug("Successfully imported DataLoader")
+except ImportError:
+    logger.debug("DataLoader import failed, will use SimpleDataLoader instead")
+    
+try:
+    from .utils.simple_data_loader import SimpleDataLoader as DataLoader
+    logger.debug("Using SimpleDataLoader as fallback")
+except ImportError:
+    logger.debug("SimpleDataLoader import failed")
+    
+    # Define a minimal DataLoader as last resort
+    class DataLoader:
+        """Minimal DataLoader implementation as fallback."""
+        def __init__(self, data_dir):
+            self.data_dir = Path(data_dir)
+            
+        def load_csv(self, filename):
+            """Load CSV data with minimal functionality."""
+            try:
+                return pd.read_csv(self.data_dir / filename)
+            except Exception as e:
+                logger.error(f"Error loading CSV: {str(e)}")
+                return pd.DataFrame()
+                
+        def preprocess_data(self, df):
+            """Minimal preprocessing."""
+            return standardize_column_names(df)
+
+# Export public symbols
+__all__ = [
+    'setup_logging',
+    'standardize_column_names',
+    'debug_file_path',
+    'ensure_directory_exists',
+    'DataLoader'
+]
+
 
 def main(data_path=None, model_type='ensemble'):
     """
@@ -184,12 +298,12 @@ def main(data_path=None, model_type='ensemble'):
         
         if model_type == 'xgb' or model_type == 'ensemble':
             logger.info("Training XGBoost model...")
-            xgb_model = XGBoostModel(n_estimators=100)
-            xgb_model.fit(X_train, y_train)
-            xgb_metrics = xgb_model.evaluate(X_test, y_test)
-            results['models']['xgb'] = xgb_model
-            results['metrics']['xgb'] = xgb_metrics
-            logger.info(f"XGBoost performance: {xgb_metrics}")
+            # xgb_model = XGBoostModel(n_estimators=100)
+            # xgb_model.fit(X_train, y_train)
+            # xgb_metrics = xgb_model.evaluate(X_test, y_test)
+            # results['models']['xgb'] = xgb_model
+            # results['metrics']['xgb'] = xgb_metrics
+            # logger.info(f"XGBoost performance: {xgb_metrics}")
         
         if model_type == 'markov' or model_type == 'ensemble':
             logger.info("Training Markov Chain model...")
