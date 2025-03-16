@@ -14,7 +14,7 @@ Modules:
 # Attempt to import main components with error handling
 try:
     from .models import BaseModel, RandomForestModel
-    from .utils import DataLoader
+    from .utils import EnhancedDataLoader
     from .features import FeatureEngineer
     from .visualization import plot_predictions, plot_feature_importance
 
@@ -31,7 +31,7 @@ except ImportError as e:
     import logging
     logging.warning(f"Some components could not be imported: {str(e)}")
     # Provide minimal imports that should always work
-    from .utils.data_loader import DataLoader
+    from src.utils.enhanced_data_loader import EnhancedDataLoader
     __all__ = ['DataLoader']
 
 # Package metadata

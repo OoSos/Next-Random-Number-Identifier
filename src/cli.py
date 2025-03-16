@@ -3,7 +3,7 @@ import logging
 import pandas as pd  # Standard import convention for pandas
 from pathlib import Path
 from src.main import main, setup_logging  # Use absolute import for consistency
-from src.utils.data_loader import DataLoader
+from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.utils import standardize_column_names  # Import centralized function
 from src.utils.monitoring_pipeline import setup_monitoring, run_monitoring_cycle
 
@@ -112,7 +112,7 @@ def run_cli():
                 return
         
         model = results['models'][model_key]
-        data_loader = DataLoader(str(Path(data_path).parent))
+        data_loader = EnhancedDataLoader(str(Path(data_path).parent))
         
         # Load latest data for prediction
         df = data_loader.load_csv(Path(data_path).name)
