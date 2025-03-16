@@ -7,13 +7,13 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from src.utils.data_loader import DataLoader
+    from src.utils.enhanced_data_loader import EnhancedDataLoader
     
     print("\nInspecting DataLoader class:")
     print(f"DataLoader methods: {[method for method in dir(DataLoader) if not method.startswith('_')]}")
     
     # Create an instance and check its methods
-    data_loader = DataLoader("data")
+    data_loader = EnhancedDataLoader("data")
     print(f"\nDataLoader instance methods: {[method for method in dir(data_loader) if not method.startswith('_')]}")
     
 except ImportError as e:

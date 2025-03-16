@@ -19,7 +19,7 @@ logger.info(f"Python path: {sys.path}")
 
 # Import the DataLoader
 try:
-    from src.utils.data_loader import DataLoader, DataValidator
+    from src.utils.enhanced_data_loader import EnhancedDataLoader, DataValidator
     logger.info("Successfully imported DataLoader and DataValidator")
 except ImportError as e:
     logger.error(f"Failed to import DataLoader: {e}")
@@ -28,7 +28,7 @@ except ImportError as e:
     try:
         # Try to import from system path
         sys.path.insert(0, str(project_root / "src"))
-        from utils.data_loader import DataLoader, DataValidator
+        from src.utils.enhanced_data_loader import EnhancedDataLoader, DataValidator
         logger.info("Successfully imported DataLoader from alternative path")
     except ImportError as e2:
         logger.error(f"Alternative import also failed: {e2}")
@@ -92,7 +92,7 @@ def test_loading_functionality(test_env):
     logger.info("\n=== Testing basic loading functionality ===")
     
     data_dir = test_env['data_dir']
-    loader = DataLoader(str(data_dir))
+    loader = EnhancedDataLoader(str(data_dir))
     
     # Test loading normal file
     df = loader.load_csv("test_data.csv")
@@ -143,7 +143,7 @@ def test_preprocessing_functionality(test_env, dfs):
     logger.info("\n=== Testing preprocessing functionality ===")
     
     data_dir = test_env['data_dir']
-    loader = DataLoader(str(data_dir))
+    loader = EnhancedDataLoader(str(data_dir))
     
     # Test preprocessing normal data
     processed_df = loader.preprocess_data(dfs['normal'])
@@ -212,7 +212,7 @@ def test_synthetic_data_generation():
     """Test the synthetic data generation functionality."""
     logger.info("\n=== Testing synthetic data generation ===")
     
-    loader = DataLoader("data")
+    loader = EnhancedDataLoader("data")
     
     # Generate synthetic data
     synthetic_df = loader.generate_synthetic_data(num_rows=100)

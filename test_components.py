@@ -8,7 +8,7 @@ import numpy as np
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from src.utils.data_loader import DataLoader
+from src.utils.enhanced_data_loader import EnhancedDataLoader
 
 def test_data_loader():
     """Test the DataLoader class."""
@@ -36,7 +36,7 @@ def test_data_loader():
             print(f"  - {file.name} ({file.stat().st_size} bytes)")
     
     # Test loading CSV
-    loader = DataLoader(str(data_dir))
+    loader = EnhancedDataLoader(str(data_dir))
     df = loader.load_csv("historical_random_numbers.csv")
     print(f"Loaded DataFrame shape: {df.shape}")
     

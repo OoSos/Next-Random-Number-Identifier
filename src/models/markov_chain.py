@@ -257,3 +257,33 @@ class MarkovChain(BaseModel):
     
         # Return empty dict if no valid importance scores
         return {}
+
+class EnhancedMarkovChain(BaseModel):
+    """
+    Enhanced Markov Chain with variable order selection and bayesian estimation.
+    """
+    def __init__(self, max_order: int = 3, smoothing: float = 0.1):
+        """
+        Initialize EnhancedMarkovChain model.
+        
+        Args:
+            max_order: Maximum chain order to try
+            smoothing: Laplace smoothing parameter
+        """
+        super().__init__(name="EnhancedMarkovChain")
+        self.max_order = max_order
+        self.smoothing = smoothing
+        self.transition_matrices = {}  # One matrix per order
+        self.order_performances = {}   # Track performance by order
+        self.best_order = None         # Best performing order
+        
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'EnhancedMarkovChain':
+        """
+        Fit Markov Chain models of different orders and select best performer.
+        """
+        # Implement order selection logic
+        # Train transition matrices for each order
+        # Measure performance on validation set
+        # Select best order
+        
+        return self

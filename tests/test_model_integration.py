@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from src.utils.data_loader import DataLoader
+from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.features.feature_engineering import FeatureEngineer
 from src.features.feature_selection import FeatureSelector
 from src.models.random_forest import RandomForestModel
@@ -34,7 +34,7 @@ def test_end_to_end_pipeline(sample_data, tmp_path):
     sample_data.to_csv(data_dir / "test_data.csv", index=False)
     
     # Create data loader
-    data_loader = DataLoader(str(data_dir))
+    data_loader = EnhancedDataLoader(str(data_dir))
     
     # Load and preprocess
     df = data_loader.load_csv("test_data.csv")
