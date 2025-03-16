@@ -62,13 +62,15 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         models: Optional[List[BaseModel]] = None,
         weights: Optional[np.ndarray] = None,
         performance_window: int = 10,
-        min_weight: float = 0.1
+        min_weight: float = 0.1,
+        combination_method: str = 'weighted_average'
     ):
         self.models = models or self._initialize_default_models()
         self.weights = self._initialize_weights(weights, len(self.models))
         self.min_weight = min_weight
         self.performance_tracker = ModelPerformanceTracker(performance_window)
         self.feature_importance_: Optional[Dict[str, float]] = None
+        self.combination_method = combination_method
         
         logging.info(f"Initialized EnhancedEnsemble with {len(self.models)} models")
 
@@ -122,7 +124,29 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
-        Generate ensemble predictions with confidence intervals.
+        Generate ensemble predictions using the selected combination method.
+        
+        Args:
+            X: Input features
+            
+        Returns:
+            Array of predicted values
+        """
+        if self.combination_method == 'weighted_average':
+            return self._weighted_average_prediction(X)
+        elif self.combination_method == 'bayesian':
+            return self.bayesian_model_averaging(X)
+        elif self.combination_method == 'confidence_weighted':
+            return self.dynamic_confidence_weighting(X)
+        elif self.combination_method == 'variance_weighted':
+            return self.variance_weighted_combination(X)
+        else:
+            logging.warning(f"Unknown combination method: {self.combination_method}. Using weighted average.")
+            return self._weighted_average_prediction(X)
+
+    def _weighted_average_prediction(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Generate ensemble predictions using weighted average.
         
         Args:
             X: Input features
@@ -201,6 +225,9 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         """
         Perform dynamic confidence-based weighting for predictions.
         
+        This method adjusts weights based on the confidence of each model's predictions.
+        Models with higher confidence for a specific sample will have more influence.
+        
         Args:
             X: Input features
         
@@ -208,9 +235,71 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
             Array of predicted values
         """
         predictions = np.array([model.predict(X) for model in self.models])
-        confidences = np.array([model.predict_proba(X).max(axis=1) for model in self.models])
-        weights = confidences / np.sum(confidences, axis=0)
-        return np.dot(weights, predictions)
+        
+        # Get confidence estimates for each model
+        confidences = np.array([model.estimate_confidence(X) for model in self.models])
+        
+        # Normalize confidences across models for each sample
+        sum_confidences = np.sum(confidences, axis=0)
+        
+        # Avoid division by zero
+        sum_confidences = np.where(sum_confidences == 0, 1.0, sum_confidences)
+        
+        # Calculate dynamic weights for each prediction
+        dynamic_weights = confidences / sum_confidences[np.newaxis, :]
+        
+        # Apply model weights to the confidence weights
+        for i in range(len(self.weights)):
+            dynamic_weights[i] *= self.weights[i]
+            
+        # Normalize dynamic weights
+        dynamic_weights = dynamic_weights / np.sum(dynamic_weights, axis=0)[np.newaxis, :]
+        
+        # Weighted sum of predictions for each sample
+        weighted_predictions = np.zeros(X.shape[0])
+        for i in range(len(self.models)):
+            weighted_predictions += predictions[i] * dynamic_weights[i]
+            
+        return weighted_predictions
+
+    def variance_weighted_combination(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Weight predictions based on the inverse of their variance (uncertainty).
+        
+        This approach gives more weight to models with lower prediction variance/uncertainty.
+        
+        Args:
+            X: Input features
+        
+        Returns:
+            Array of predicted values
+        """
+        predictions = np.array([model.predict(X) for model in self.models])
+        
+        # Estimate variance as inverse of confidence
+        confidences = np.array([model.estimate_confidence(X) for model in self.models])
+        
+        # Convert confidence to variance (higher confidence = lower variance)
+        # Add a small constant to avoid division by zero
+        variances = 1.0 / (confidences + 1e-10)
+        
+        # Calculate precision (inverse of variance)
+        precisions = 1.0 / (variances + 1e-10)
+        
+        # Apply model weights to the precision values
+        for i in range(len(self.weights)):
+            precisions[i] *= self.weights[i]
+        
+        # Normalize precisions to get weights
+        sum_precisions = np.sum(precisions, axis=0)
+        normalized_precisions = precisions / (sum_precisions[np.newaxis, :] + 1e-10)
+        
+        # Weighted sum of predictions
+        weighted_predictions = np.zeros(X.shape[0])
+        for i in range(len(self.models)):
+            weighted_predictions += predictions[i] * normalized_precisions[i]
+        
+        return weighted_predictions
 
     def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
         """
@@ -222,8 +311,28 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Returns:
             np.ndarray: Confidence estimates for each prediction
         """
-        confidences = np.array([model.estimate_confidence(X) for model in self.models])
-        return np.mean(confidences, axis=0)
+        try:
+            confidences = np.array([model.estimate_confidence(X) for model in self.models])
+            
+            if self.combination_method == 'weighted_average':
+                # Weighted average of confidence values
+                return np.average(confidences, weights=self.weights, axis=0)
+            elif self.combination_method == 'confidence_weighted':
+                # Return the maximum confidence for each prediction
+                return np.max(confidences, axis=0)
+            elif self.combination_method == 'variance_weighted':
+                # Calculate the combined confidence based on variance weighting
+                variances = 1.0 / (confidences + 1e-10)
+                combined_variance = 1.0 / np.sum(1.0 / (variances + 1e-10), axis=0)
+                return 1.0 / (combined_variance + 1e-10)
+            else:
+                # Default: weighted average
+                return np.average(confidences, weights=self.weights, axis=0)
+                
+        except Exception as e:
+            logging.error(f"Error estimating confidence: {str(e)}")
+            # Return default confidence of 0.5
+            return np.ones(X.shape[0]) * 0.5
 
     def _calculate_metrics(self, y_true: pd.Series, y_pred: np.ndarray) -> Dict[str, float]:
         """Calculate performance metrics."""
@@ -238,11 +347,23 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         
         for model, weight in zip(self.models, self.weights):
             if hasattr(model, 'get_feature_importance'):
-                model_importance = model.get_feature_importance()
-                for feature, importance in model_importance.items():
-                    if feature not in importance_dict:
-                        importance_dict[feature] = 0.0
-                    importance_dict[feature] += float(importance * weight)  # Explicit float conversion
+                try:
+                    model_importance = model.get_feature_importance()
+                    for feature, importance in model_importance.items():
+                        if feature not in importance_dict:
+                            importance_dict[feature] = 0.0
+                        importance_dict[feature] += float(importance * weight)  # Explicit float conversion
+                except Exception as e:
+                    logging.warning(f"Error getting feature importance from model {model.__class__.__name__}: {str(e)}")
+        
+        # Normalize importance values
+        if importance_dict:
+            max_importance = max(importance_dict.values())
+            if max_importance > 0:
+                importance_dict = {
+                    feature: float(importance / max_importance)
+                    for feature, importance in importance_dict.items()
+                }
         
         self.feature_importance_ = importance_dict
 
@@ -251,7 +372,12 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         contributions: Dict[str, float] = {}
         
         for i, (model, weight) in enumerate(zip(self.models, self.weights)):
-            model_name = model.__class__.__name__
+            # Use name attribute if available (for test mocks), otherwise use class name
+            if hasattr(model, 'name'):
+                model_name = model.name
+            else:
+                model_name = model.__class__.__name__
+            
             contributions[model_name] = float(weight)  # Explicit float conversion
         
         return contributions
@@ -260,7 +386,8 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         """Get a summary of model performance and ensemble metrics."""
         summary = {
             'model_weights': self.get_model_contributions(),
-            'performance_trends': {}
+            'performance_trends': {},
+            'combination_method': self.combination_method
         }
         
         for i in range(len(self.models)):
@@ -270,6 +397,19 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
             )
         
         return summary
+        
+    def get_feature_importance(self) -> Dict[str, float]:
+        """
+        Get the ensemble's combined feature importance.
+        
+        Returns:
+            Dict[str, float]: Dictionary mapping feature names to importance scores
+        """
+        if self.feature_importance_ is None:
+            raise ValueError("Ensemble must be fitted before getting feature importance")
+            
+        return self.feature_importance_
+
 
 class AdaptiveEnsemble(BaseModel):
     """
@@ -281,6 +421,34 @@ class AdaptiveEnsemble(BaseModel):
         self.window_size = window_size
         self.weights = np.ones(len(models)) / len(models)  # Equal weights initially
         self.recent_performances = []
+        
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'AdaptiveEnsemble':
+        """
+        Fit all component models.
+        
+        Args:
+            X: Training features
+            y: Target values
+            
+        Returns:
+            self: Fitted model
+        """
+        for model in self.models:
+            model.fit(X, y)
+        return self
+        
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Generate ensemble predictions.
+        
+        Args:
+            X: Input features
+            
+        Returns:
+            Array of predicted values
+        """
+        predictions = [model.predict(X) for model in self.models]
+        return np.average(predictions, weights=self.weights, axis=0)
         
     def update_weights(self, y_true: pd.Series, predictions: List[np.ndarray]):
         """
@@ -300,6 +468,33 @@ class AdaptiveEnsemble(BaseModel):
         alpha = 0.3  # Smoothing factor
         self.weights = [alpha * new_w + (1 - alpha) * old_w 
                       for new_w, old_w in zip(new_weights, self.weights)]
+                      
+    def get_feature_importance(self) -> Dict[str, float]:
+        """
+        Get combined feature importance from all models.
+        
+        Returns:
+            Dict[str, float]: Dictionary mapping feature names to importance scores
+        """
+        importance_dict = {}
+        
+        for model, weight in zip(self.models, self.weights):
+            model_importance = model.get_feature_importance()
+            for feature, importance in model_importance.items():
+                if feature not in importance_dict:
+                    importance_dict[feature] = 0.0
+                importance_dict[feature] += importance * weight
+                
+        # Normalize importance values
+        if importance_dict:
+            max_importance = max(importance_dict.values())
+            if max_importance > 0:
+                importance_dict = {
+                    feature: importance / max_importance
+                    for feature, importance in importance_dict.items()
+                }
+                
+        return importance_dict
 
     def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
         """
@@ -312,4 +507,4 @@ class AdaptiveEnsemble(BaseModel):
             np.ndarray: Confidence estimates for each prediction
         """
         confidences = np.array([model.estimate_confidence(X) for model in self.models])
-        return np.mean(confidences, axis=0)
+        return np.average(confidences, weights=self.weights, axis=0)
