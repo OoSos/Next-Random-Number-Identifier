@@ -352,5 +352,51 @@ def main(data_path=None, model_type='ensemble'):
         results['error'] = str(e)
         return results
 
+class PredictionPipeline:
+    """
+    End-to-end pipeline for random number prediction.
+    """
+    def __init__(self, data_loader, feature_engineer, models, ensemble=None):
+        self.data_loader = data_loader
+        self.feature_engineer = feature_engineer
+        self.models = models
+        self.ensemble = ensemble
+        
+    def predict_next(self, data_path: str) -> Dict[str, Any]:
+        """
+        Predict the next number in the sequence.
+        """
+        # Load and process data
+        df = self.data_loader.load_and_preprocess(data_path)
+        
+        # Create features
+        df_features = self.feature_engineer.transform(df)
+        
+        # Prepare data for prediction
+        X = df_features.drop(['Date', 'Number'], axis=1).fillna(0)
+        
+        # Get individual model predictions
+        model_predictions = {}
+        for name, model in self.models.items():
+            model_predictions[name] = model.predict(X.tail(1))[0]
+            
+        # Get ensemble prediction if available
+        ensemble_prediction = None
+        if self.ensemble:
+            ensemble_prediction = self.ensemble.predict(X.tail(1))[0]
+            
+        # Determine confidence level
+        # Higher confidence when models agree
+        model_values = list(model_predictions.values())
+        agreement_ratio = max(model_values.count(x) for x in set(model_values)) / len(model_values)
+        
+        return {
+            'individual_predictions': model_predictions,
+            'ensemble_prediction': ensemble_prediction,
+            'confidence': agreement_ratio,
+            'most_likely': ensemble_prediction if ensemble_prediction is not None 
+                         else max(model_predictions.items(), key=lambda x: x[1])[1]
+        }
+
 if __name__ == "__main__":
     main()

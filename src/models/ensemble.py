@@ -8,6 +8,7 @@ from .base_model import BaseModel
 from .random_forest import RandomForestModel
 from .xgboost_model import XGBoostModel
 from .markov_chain import MarkovChain
+from sklearn.metrics import mean_squared_error
 
 class ModelPerformanceTracker:
     """Tracks and analyzes model performance over time."""
@@ -212,3 +213,33 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
             )
         
         return summary
+
+class AdaptiveEnsemble(BaseModel):
+    """
+    Adaptive ensemble with dynamic model weighting based on recent performance.
+    """
+    def __init__(self, models: List[BaseModel], window_size: int = 10):
+        super().__init__(name="AdaptiveEnsemble")
+        self.models = models
+        self.window_size = window_size
+        self.weights = np.ones(len(models)) / len(models)  # Equal weights initially
+        self.recent_performances = []
+        
+    def update_weights(self, y_true: pd.Series, predictions: List[np.ndarray]):
+        """
+        Update model weights based on recent performance.
+        """
+        # Calculate errors for each model
+        errors = [mean_squared_error(y_true, pred) for pred in predictions]
+        
+        # Convert errors to accuracy scores (inverse of error)
+        accuracies = [1 / (err + 1e-10) for err in errors]  # Add small constant to avoid division by zero
+        
+        # Normalize to get weights
+        total_accuracy = sum(accuracies)
+        new_weights = [acc / total_accuracy for acc in accuracies]
+        
+        # Apply exponential smoothing to weights
+        alpha = 0.3  # Smoothing factor
+        self.weights = [alpha * new_w + (1 - alpha) * old_w 
+                      for new_w, old_w in zip(new_weights, self.weights)]

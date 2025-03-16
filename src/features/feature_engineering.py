@@ -124,6 +124,12 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             except Exception as e:
                 print(f"Error creating statistical features: {str(e)}")
         
+        # Create pattern features
+        try:
+            result = self.create_pattern_features(result)
+        except Exception as e:
+            print(f"Error creating pattern features: {str(e)}")
+        
         # Encode categorical features
         result = self._encode_categorical_features(result)
         
@@ -250,6 +256,35 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         df['IsOutlier'] = abs(df['ZScore']) > 2
         df['IsRepeated'] = df[target_col] == df[target_col].shift(1)
         
+        return df
+
+    def create_pattern_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Create features that capture potential patterns in the number sequence.
+        """
+        target_col = 'Number'
+        
+        # Detect repeating cycles (if any)
+        for cycle_length in range(2, 10):
+            df[f'Cycle_{cycle_length}'] = df[target_col].shift(cycle_length) == df[target_col]
+        
+        # Streak features (consecutive occurrences)
+        df['Streak'] = (df[target_col] == df[target_col].shift(1)).astype(int)
+        df['StreakLength'] = df['Streak'].groupby((df['Streak'] != df['Streak'].shift(1)).cumsum()).cumcount() + 1
+        
+        # Transition types (up, down, same)
+        df['Transition'] = np.sign(df[target_col].diff())
+        
+        # Distance from mean and median
+        rolling_mean = df[target_col].rolling(window=20).mean()
+        df['DistanceFromMean'] = (df[target_col] - rolling_mean) / rolling_mean.std()
+        
+        # Entropy features (measure of randomness in recent selections)
+        for window in [5, 10, 20]:
+            df[f'Entropy_{window}'] = df[target_col].rolling(window=window).apply(
+                lambda x: -sum((x.value_counts() / len(x)) * np.log2(x.value_counts() / len(x)))
+            )
+            
         return df
 
     def _encode_categorical_features(self, df: pd.DataFrame) -> pd.DataFrame:
