@@ -212,6 +212,19 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         weights = confidences / np.sum(confidences, axis=0)
         return np.dot(weights, predictions)
 
+    def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Estimate prediction confidence using the ensemble of models.
+        
+        Args:
+            X (pd.DataFrame): Features to estimate confidence for
+            
+        Returns:
+            np.ndarray: Confidence estimates for each prediction
+        """
+        confidences = np.array([model.estimate_confidence(X) for model in self.models])
+        return np.mean(confidences, axis=0)
+
     def _calculate_metrics(self, y_true: pd.Series, y_pred: np.ndarray) -> Dict[str, float]:
         """Calculate performance metrics."""
         return {
@@ -287,3 +300,16 @@ class AdaptiveEnsemble(BaseModel):
         alpha = 0.3  # Smoothing factor
         self.weights = [alpha * new_w + (1 - alpha) * old_w 
                       for new_w, old_w in zip(new_weights, self.weights)]
+
+    def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Estimate prediction confidence using the ensemble of models.
+        
+        Args:
+            X (pd.DataFrame): Features to estimate confidence for
+            
+        Returns:
+            np.ndarray: Confidence estimates for each prediction
+        """
+        confidences = np.array([model.estimate_confidence(X) for model in self.models])
+        return np.mean(confidences, axis=0)

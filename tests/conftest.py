@@ -1,8 +1,12 @@
 import sys
 import os
-import pytest  # New import
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+import pytest  # New import
 
 @pytest.fixture(scope='session')
 def setup_environment():

@@ -29,6 +29,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         create_statistical_features: bool = True,
         create_pattern_features: bool = True,
         create_entropy_features: bool = True,
+        create_rare_pattern_features: bool = True,
         target_column: str = 'Number',
         date_column: str = 'Date'
     ):
@@ -48,6 +49,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             create_statistical_features: Whether to create statistical features
             create_pattern_features: Whether to create pattern features
             create_entropy_features: Whether to create entropy-based features
+            create_rare_pattern_features: Whether to create rare pattern features
             target_column: Name of the column containing the target numbers
             date_column: Name of the column containing dates
         """
@@ -63,6 +65,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         self.create_statistical_features = create_statistical_features
         self.create_pattern_features = create_pattern_features
         self.create_entropy_features = create_entropy_features
+        self.create_rare_pattern_features = create_rare_pattern_features
         self.target_column = target_column
         self.date_column = date_column
         self._validate_parameters()
@@ -104,7 +107,8 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             'frequency': [],
             'statistical': [],
             'pattern': [],
-            'entropy': []
+            'entropy': [],
+            'rare_pattern': []
         }
         
         # Standardize column names
@@ -173,6 +177,12 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
                 result = self._create_entropy_features(result)
             except Exception as e:
                 print(f"Error creating entropy features: {str(e)}")
+        
+        if self.create_rare_pattern_features and self.target_column in result.columns:
+            try:
+                result = self._create_rare_pattern_features(result)
+            except Exception as e:
+                print(f"Error creating rare pattern features: {str(e)}")
         
         # Encode categorical features
         result = self._encode_categorical_features(result)
@@ -581,6 +591,30 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         # Store created feature names
         self.feature_groups['entropy'] = entropy_features
         
+        return df
+
+    def _create_rare_pattern_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Create features that detect rare patterns in the number sequence.
+        """
+        rare_pattern_features = []
+        target_col = self.target_column
+
+        # Detect rare patterns (e.g., specific sequences)
+        rare_sequences = [
+            [1, 2, 3],  # Example sequence
+            [7, 8, 9]   # Another example sequence
+        ]
+        for seq in rare_sequences:
+            feature_name = f'RarePattern_{"_".join(map(str, seq))}'
+            df[feature_name] = df[target_col].rolling(window=len(seq)).apply(
+                lambda x: int((x == seq).all())
+            )
+            rare_pattern_features.append(feature_name)
+
+        # Store created feature names
+        self.feature_groups['rare_pattern'] = rare_pattern_features
+
         return df
 
     def _encode_categorical_features(self, df: pd.DataFrame) -> pd.DataFrame:

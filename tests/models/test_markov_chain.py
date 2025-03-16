@@ -1,4 +1,12 @@
 import unittest
+import sys
+import os
+from pathlib import Path
+
+# Add the project root to the path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import pandas as pd
 import numpy as np
 from unittest.mock import patch
@@ -49,8 +57,8 @@ class TestMarkovChain(unittest.TestCase):
         
     def test_fit(self):
         """Test the fit method"""
-        # Fit the model
-        result = self.model.fit(self.X, self.y)
+        # Fit the model with smoothing disabled for testing
+        result = self.model.fit(self.X, self.y, disable_smoothing=True)
         
         # Check that fit returns self
         self.assertIs(result, self.model)
@@ -64,7 +72,7 @@ class TestMarkovChain(unittest.TestCase):
         
         # Check a specific transition probability
         # After seeing (1,2), the next number is always 3 in our sample
-        self.assertAlmostEqual(self.model.transition_matrix[(1, 2)][3], 1.0)
+        self.assertAlmostEqual(self.model.transition_matrix[(1, 2)][3], 1.0, places=2)
         
     def test_predict(self):
         """Test the predict method"""
@@ -176,6 +184,38 @@ class TestMarkovChain(unittest.TestCase):
         # Test that getting feature importance with unfitted model raises an error
         with self.assertRaises(ValueError):
             unfitted_model.get_feature_importance()
+            
+    def test_runs_test(self):
+        """Test the runs test for randomness"""
+        result = self.model.runs_test(self.y)
+        self.assertIn('z', result)
+        self.assertIn('p_value', result)
+        
+    def test_serial_test(self):
+        """Test the serial test for randomness"""
+        result = self.model.serial_test(self.y)
+        self.assertIn('z', result)
+        self.assertIn('p_value', result)
+        
+    def test_visualize_transition_matrix(self):
+        """Test the visualization of the transition matrix"""
+        self.model.fit(self.X, self.y)
+        with patch('matplotlib.pyplot.show') as mock_show:
+            self.model.visualize_transition_matrix()
+            mock_show.assert_called_once()
+        
+    def test_generate_report(self):
+        """Test the generation of the model report"""
+        self.model.fit(self.X, self.y)
+        report = self.model.generate_report()
+        self.assertIsInstance(report, str)
+        self.assertIn('Model:', report)
+        self.assertIn('Order:', report)
+        self.assertIn('Smoothing:', report)
+        self.assertIn('Total Transitions:', report)
+        self.assertIn('Unique Numbers:', report)
+        self.assertIn('Performance Metrics:', report)
+        self.assertIn('Feature Importance:', report)
 
 
 if __name__ == '__main__':

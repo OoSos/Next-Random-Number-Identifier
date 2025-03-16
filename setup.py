@@ -2,9 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="next-random-number-identifier",
-    version="0.0.0",  # Version will be updated by semantic-release
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    version="0.1.0",
+    packages=find_packages(),
     description="A machine learning-based system for analyzing and forecasting random number sequences",
     author="OoSos",
     author_email="example@example.com",
