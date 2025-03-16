@@ -1,6 +1,6 @@
 # src/utils/__init__.py
 
-from .data_loader import DataLoader
+from .enhanced_data_loader import EnhancedDataLoader, DataSchemaValidator
 from .evaluation import ModelEvaluator
 from .monitoring import ModelMonitor
 from .file_utils import debug_file_path
@@ -16,20 +16,13 @@ def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame with standardized column names
     """
-    column_mapping = {
-        'Super Ball': 'Number',
-        'super ball': 'Number',
-        'super_ball': 'Number',
-        'superball': 'Number',
-        'SUPER BALL': 'Number',
-        'Ball': 'Number'
-    }
-    
-    # Apply mapping to rename columns
-    return df.rename(columns=column_mapping)
+    # Use the new EnhancedDataLoader's implementation
+    loader = EnhancedDataLoader(".")  # Directory doesn't matter for this use
+    return loader.standardize_column_names(df)
 
 __all__ = [
-    'DataLoader',
+    'EnhancedDataLoader',
+    'DataSchemaValidator',
     'ModelEvaluator',
     'ModelMonitor',
     'debug_file_path',

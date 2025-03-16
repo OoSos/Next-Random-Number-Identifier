@@ -313,7 +313,7 @@ class DataLoader:
 # Example usage
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    loader = DataLoader("data")
+    loader = EnhancedDataLoader("data")
     df = loader.load_csv("historical_random_numbers.csv")
     processed_df = loader.preprocess_data(df)
     print(processed_df.head())
