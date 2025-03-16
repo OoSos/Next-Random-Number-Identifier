@@ -248,3 +248,16 @@ class RandomForestModel(BaseModel):
         self.fit(X, y)
         
         return grid_search.best_params_
+    
+    def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Estimate prediction confidence using the predict_proba method.
+        
+        Args:
+            X (pd.DataFrame): Features to estimate confidence for
+            
+        Returns:
+            np.ndarray: Confidence estimates for each prediction
+        """
+        proba = self.model.predict_proba(X)
+        return np.max(proba, axis=1)

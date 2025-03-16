@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from collections import defaultdict
 from .base_model import BaseModel
+from scipy.stats import zscore, norm
 
 class MarkovChain(BaseModel):
     """
@@ -19,7 +20,9 @@ class MarkovChain(BaseModel):
             smoothing (float): Laplace smoothing parameter
             **kwargs: Additional parameters
         """
-        super().__init__(name="MarkovChain", **kwargs)
+        # Set a default name if not provided in kwargs
+        name = kwargs.pop('name', "MarkovChain")
+        super().__init__(name=name, **kwargs)
         self.order = order
         self.smoothing = smoothing
         self.transition_matrix: Dict[Tuple, Dict[int, float]] = defaultdict(lambda: defaultdict(float))
@@ -40,13 +43,14 @@ class MarkovChain(BaseModel):
     
         return sequences
 
-    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'MarkovChain':
+    def fit(self, X: pd.DataFrame, y: pd.Series, disable_smoothing: bool = False) -> 'MarkovChain':
         """
         Fit Markov Chain model to the training data.
         
         Args:
             X (pd.DataFrame): Not used in Markov Chain (kept for consistency)
             y (pd.Series): Training sequence
+            disable_smoothing (bool): If True, disable Laplace smoothing (for testing)
             
         Returns:
             self: The fitted model instance
@@ -62,9 +66,10 @@ class MarkovChain(BaseModel):
         
         # Convert counts to probabilities with smoothing
         for state in self.transition_matrix:
-            total = sum(self.transition_matrix[state].values()) + self.smoothing * len(self.unique_numbers)
+            smoothing_factor = 0 if disable_smoothing else self.smoothing
+            total = sum(self.transition_matrix[state].values()) + smoothing_factor * len(self.unique_numbers)
             for next_state in self.unique_numbers:
-                count = self.transition_matrix[state][next_state] + self.smoothing
+                count = self.transition_matrix[state][next_state] + smoothing_factor
                 self.transition_matrix[state][next_state] = count / total
                 
         return self
@@ -284,6 +289,119 @@ class MarkovChain(BaseModel):
     
         # Return empty dict if no valid importance scores
         return {}
+
+    def runs_test(self, sequence: pd.Series) -> Dict[str, float]:
+        """
+        Perform runs test for randomness on the given sequence.
+        """
+        n1 = sum(sequence > sequence.median())
+        n2 = sum(sequence <= sequence.median())
+        runs = 1 + sum((sequence[:-1].reset_index(drop=True) > sequence.median()) != (sequence[1:].reset_index(drop=True) > sequence.median()))
+        expected_runs = (2 * n1 * n2) / (n1 + n2) + 1
+        variance_runs = (2 * n1 * n2 * (2 * n1 * n2 - n1 - n2)) / ((n1 + n2) ** 2 * (n1 + n2 - 1))
+        z = (runs - expected_runs) / np.sqrt(variance_runs)
+        p_value = 2 * (1 - norm.cdf(abs(z)))
+        return {'z': z, 'p_value': p_value}
+
+    def serial_test(self, sequence: pd.Series, lag: int = 1) -> Dict[str, float]:
+        """
+        Perform serial test for randomness on the given sequence.
+        """
+        n = len(sequence)
+        pairs = [(sequence[i], sequence[i + lag]) for i in range(n - lag)]
+        unique_pairs = len(set(pairs))
+        expected_pairs = (n - lag) / 2
+        variance_pairs = (n - lag) * (n - lag - 1) / 4
+        z = (unique_pairs - expected_pairs) / np.sqrt(variance_pairs)
+        p_value = 2 * (1 - norm.cdf(abs(z)))
+        return {'z': z, 'p_value': p_value}
+
+    def visualize_transition_matrix(self) -> None:
+        """
+        Visualize the transition matrix using a heatmap.
+        """
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+
+        if self.transition_matrix is None:
+            raise ValueError("Model must be trained before visualizing transition matrix")
+
+        matrix_df = self.get_transition_matrix()
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(matrix_df, annot=True, cmap="coolwarm", fmt=".2f")
+        plt.title("Transition Matrix Heatmap")
+        plt.xlabel("Next State")
+        plt.ylabel("Current State")
+        plt.show()
+
+    def generate_report(self) -> str:
+        """
+        Generate a comprehensive report of the Markov Chain model.
+        """
+        report = []
+        report.append(f"Model: {self.name}")
+        report.append(f"Order: {self.order}")
+        report.append(f"Smoothing: {self.smoothing}")
+        report.append(f"Total Transitions: {self.total_transitions}")
+        report.append(f"Unique Numbers: {self.unique_numbers}")
+        report.append(f"Performance Metrics: {self.performance_metrics}")
+        report.append(f"Feature Importance: {self.get_feature_importance()}")
+        return "\n".join(report)
+
+    def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Estimate prediction confidence based on transition probabilities.
+        
+        Args:
+            X (pd.DataFrame): Input features
+            
+        Returns:
+            np.ndarray: Confidence scores for each prediction
+        """
+        if self.unique_numbers is None:
+            raise ValueError("Model must be trained before estimating confidence")
+            
+        # Get the most recent state from X
+        if 'Number' in X.columns and len(X) >= self.order:
+            current_state = tuple(X['Number'].tail(self.order))
+        else:
+            # If we don't have enough history, return low confidence
+            return np.ones(len(X)) * 0.1
+            
+        # Calculate confidence based on the distribution of transition probabilities
+        confidences = []
+        
+        for _ in range(len(X)):
+            if current_state in self.transition_matrix:
+                # Extract probabilities for each possible next state
+                probabilities = [self.transition_matrix[current_state][n] for n in self.unique_numbers]
+                
+                # Higher max probability indicates higher confidence
+                max_prob = max(probabilities)
+                
+                # Alternative: use entropy as a measure of confidence
+                # entropy = -sum(p * np.log2(p) for p in probabilities if p > 0)
+                # max_entropy = np.log2(len(probabilities))
+                # confidence = 1 - (entropy / max_entropy) if max_entropy > 0 else 0
+                
+                # Use the maximum probability as confidence
+                confidences.append(max_prob)
+            else:
+                # If state not seen in training, use low confidence
+                confidences.append(0.1)
+                
+            # Update the current state for the next prediction (using the most likely next state)
+            if current_state in self.transition_matrix:
+                probabilities = [self.transition_matrix[current_state][n] for n in self.unique_numbers]
+                next_state = self.unique_numbers[np.argmax(probabilities)]
+                
+                # Update current state
+                if self.order > 1:
+                    current_state = current_state[1:] + (next_state,)
+                else:
+                    current_state = (next_state,)
+        
+        return np.array(confidences)
 
 class EnhancedMarkovChain(BaseModel):
     """

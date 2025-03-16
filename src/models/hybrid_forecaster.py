@@ -1,6 +1,7 @@
 from statsmodels.tsa.arima.model import ARIMA
 from src.models.base_model import BaseModel
 import pandas as pd
+import numpy as np
 
 class HybridForecaster(BaseModel):
     """
@@ -98,6 +99,18 @@ class HybridForecaster(BaseModel):
             feature_importance_: Feature importance from the machine learning model.
         """
         return self.feature_importance_
+    
+    def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Estimate prediction confidence using the ML model's predict_proba method.
+        
+        Args:
+            X (pd.DataFrame): Features to estimate confidence for
+            
+        Returns:
+            np.ndarray: Confidence estimates for each prediction
+        """
+        return self.ml_model.estimate_confidence(X)
     
     @staticmethod
     def usage_example():

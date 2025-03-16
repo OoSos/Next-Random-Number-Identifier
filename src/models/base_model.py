@@ -50,6 +50,19 @@ class BaseModel(ABC):
         """
         pass
     
+    @abstractmethod
+    def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Estimate prediction confidence.
+        
+        Args:
+            X (pd.DataFrame): Features to estimate confidence for
+            
+        Returns:
+            np.ndarray: Confidence estimates
+        """
+        pass
+    
     def get_params(self) -> Dict[str, Any]:
         """
         Get model parameters.
