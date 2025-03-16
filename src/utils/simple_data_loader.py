@@ -4,7 +4,7 @@ import logging
 
 class SimpleDataLoader:
     """
-    Simplified data loader to ensure functionality
+    Simplified data loader to ensure functionality.
     """
     def __init__(self, data_dir):
         self.data_dir = Path(data_dir)
@@ -16,12 +16,12 @@ class SimpleDataLoader:
         
         try:
             df = pd.read_csv(file_path)
-            print(f"Successfully loaded {file_path} with shape: {df.shape}")
+            self.logger.info(f"Successfully loaded {file_path} with shape: {df.shape}")
             return df
         except Exception as e:
-            print(f"Error loading CSV: {str(e)}")
+            self.logger.error(f"Error loading CSV: {str(e)}")
             return pd.DataFrame()
-    
+        
     def preprocess_data(self, df):
         """Basic data preprocessing"""
         if 'Date' in df.columns:
