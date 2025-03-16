@@ -2,7 +2,7 @@ from typing import Dict, Tuple, List, Optional
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-from src.models.base_model import BaseModel
+from .base_model import BaseModel
 
 class MarkovChain(BaseModel):
     """
@@ -68,6 +68,33 @@ class MarkovChain(BaseModel):
                 self.transition_matrix[state][next_state] = count / total
                 
         return self
+
+    def optimize_order(self, X: pd.DataFrame, y: pd.Series, max_order: int = 5) -> int:
+        """
+        Optimize the order of the Markov Chain based on performance metrics.
+        
+        Args:
+            X (pd.DataFrame): Not used in Markov Chain (kept for consistency)
+            y (pd.Series): Training sequence
+            max_order (int): Maximum order to try
+            
+        Returns:
+            int: Best performing order
+        """
+        best_order = 1
+        best_accuracy = 0.0
+        
+        for order in range(1, max_order + 1):
+            self.order = order
+            self.fit(X, y)
+            accuracy = self.evaluate(X, y)['accuracy']
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                best_order = order
+        
+        self.order = best_order
+        self.fit(X, y)
+        return best_order
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
