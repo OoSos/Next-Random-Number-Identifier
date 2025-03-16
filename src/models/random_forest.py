@@ -1,5 +1,5 @@
 # Standard library imports
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 # Third-party imports
 import numpy as np
@@ -225,3 +225,26 @@ class RandomForestModel(BaseModel):
             raise ValueError("OOB score not available. Enable oob_score=True during model initialization.")
             
         return float(self.model.oob_score_)
+    
+    def optimize_hyperparameters(self, X: pd.DataFrame, y: pd.Series, param_grid: Dict[str, List[Any]]) -> Dict[str, Any]:
+        """
+        Optimize hyperparameters using grid search.
+        
+        Args:
+            X (pd.DataFrame): Training features
+            y (pd.Series): Training target
+            param_grid (Dict[str, List[Any]]): Grid of hyperparameters to search
+            
+        Returns:
+            Dict[str, Any]: Best hyperparameters
+        """
+        from sklearn.model_selection import GridSearchCV
+        
+        grid_search = GridSearchCV(self.model, param_grid, cv=5, scoring='neg_mean_squared_error')
+        grid_search.fit(X, y)
+        
+        self.params.update(grid_search.best_params_)
+        self.model = RandomForestRegressor(**self.params)
+        self.fit(X, y)
+        
+        return grid_search.best_params_

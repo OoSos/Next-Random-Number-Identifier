@@ -160,3 +160,26 @@ class XGBoostModel(BaseModel):
             Dict[str, Any]: Current model parameters
         """
         return self.model.get_params()
+
+    def optimize_hyperparameters(self, X: pd.DataFrame, y: pd.Series, param_grid: Dict[str, List[Any]]) -> Dict[str, Any]:
+        """
+        Optimize hyperparameters using grid search.
+        
+        Args:
+            X (pd.DataFrame): Training features
+            y (pd.Series): Training target
+            param_grid (Dict[str, List[Any]]): Grid of hyperparameters to search
+            
+        Returns:
+            Dict[str, Any]: Best hyperparameters
+        """
+        from sklearn.model_selection import GridSearchCV
+        
+        grid_search = GridSearchCV(self.model, param_grid, cv=5, scoring='accuracy')
+        grid_search.fit(X, y)
+        
+        self.params.update(grid_search.best_params_)
+        self.model = XGBClassifier(**self.params)
+        self.fit(X, y)
+        
+        return grid_search.best_params_

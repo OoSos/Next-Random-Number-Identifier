@@ -12,7 +12,7 @@ try:
     from .features.feature_engineering import FeatureEngineer
     from .models.random_forest import RandomForestModel
     from .models.markov_chain import MarkovChain
-    from .models.ensemble import EnhancedEnsemble
+    from .models.ensemble import EnhancedEnsemble, AdaptiveEnsemble
     from .models.hybrid_forecaster import HybridForecaster
     FULL_MODELS_AVAILABLE = True
 except ImportError:
@@ -342,6 +342,17 @@ def main(data_path=None, model_type='ensemble'):
             results['models']['ensemble'] = ensemble
             results['metrics']['ensemble'] = ensemble_metrics
             logger.info(f"Ensemble model performance: {ensemble_metrics}")
+
+        if model_type == 'adaptive_ensemble' and FULL_MODELS_AVAILABLE:
+            logger.info("Training Adaptive Ensemble model...")
+            models = [results['models'][m] for m in ['rf', 'xgb', 'markov'] if m in results['models']]
+            adaptive_ensemble = AdaptiveEnsemble(models=models)
+            adaptive_ensemble.fit(X_train, y_train)
+            adaptive_ensemble_pred = adaptive_ensemble.predict(X_test)
+            adaptive_ensemble_metrics = {'mse': mean_squared_error(y_test, adaptive_ensemble_pred)}
+            results['models']['adaptive_ensemble'] = adaptive_ensemble
+            results['metrics']['adaptive_ensemble'] = adaptive_ensemble_metrics
+            logger.info(f"Adaptive Ensemble model performance: {adaptive_ensemble_metrics}")
         
         # Store success status
         results['success'] = True
@@ -361,7 +372,9 @@ class PredictionPipeline:
         self.feature_engineer = feature_engineer
         self.models = models
         self.ensemble = ensemble
-        
+        self.prediction_history = []
+        self.confidence_history = []
+
     def predict_next(self, data_path: str) -> Dict[str, Any]:
         """
         Predict the next number in the sequence.
@@ -378,17 +391,32 @@ class PredictionPipeline:
         # Get individual model predictions
         model_predictions = {}
         for name, model in self.models.items():
-            model_predictions[name] = model.predict(X.tail(1))[0]
-            
+            try:
+                model_predictions[name] = model.predict(X.tail(1))[0]
+            except Exception as e:
+                logging.error(f"Error in model {name} prediction: {str(e)}")
+                model_predictions[name] = None
+        
         # Get ensemble prediction if available
         ensemble_prediction = None
         if self.ensemble:
-            ensemble_prediction = self.ensemble.predict(X.tail(1))[0]
-            
+            try:
+                ensemble_prediction = self.ensemble.predict(X.tail(1))[0]
+            except Exception as e:
+                logging.error(f"Error in ensemble prediction: {str(e)}")
+                ensemble_prediction = None
+        
         # Determine confidence level
         # Higher confidence when models agree
-        model_values = list(model_predictions.values())
-        agreement_ratio = max(model_values.count(x) for x in set(model_values)) / len(model_values)
+        model_values = [pred for pred in model_predictions.values() if pred is not None]
+        if model_values:
+            agreement_ratio = max(model_values.count(x) for x in set(model_values)) / len(model_values)
+        else:
+            agreement_ratio = 0
+        
+        # Track prediction and confidence history
+        self.prediction_history.append(ensemble_prediction if ensemble_prediction is not None else max(model_predictions.items(), key=lambda x: x[1])[1])
+        self.confidence_history.append(agreement_ratio)
         
         return {
             'individual_predictions': model_predictions,
@@ -397,6 +425,18 @@ class PredictionPipeline:
             'most_likely': ensemble_prediction if ensemble_prediction is not None 
                          else max(model_predictions.items(), key=lambda x: x[1])[1]
         }
+
+    def get_prediction_history(self) -> List[Any]:
+        """
+        Get the history of predictions.
+        """
+        return self.prediction_history
+
+    def get_confidence_history(self) -> List[float]:
+        """
+        Get the history of confidence levels.
+        """
+        return self.confidence_history
 
 if __name__ == "__main__":
     main()

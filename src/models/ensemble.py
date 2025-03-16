@@ -168,6 +168,50 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         self.weights = new_weights
         logging.info(f"Updated ensemble weights: {self.weights}")
 
+    def bayesian_model_averaging(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Perform Bayesian model averaging for predictions.
+        
+        Args:
+            X: Input features
+        
+        Returns:
+            Array of predicted values
+        """
+        predictions = np.array([model.predict(X) for model in self.models])
+        weights = self.weights / np.sum(self.weights)
+        return np.dot(weights, predictions)
+
+    def model_stacking(self, X: pd.DataFrame, meta_learner: BaseEstimator) -> np.ndarray:
+        """
+        Perform model stacking with a meta-learner.
+        
+        Args:
+            X: Input features
+            meta_learner: Meta-learner model
+        
+        Returns:
+            Array of predicted values
+        """
+        base_predictions = np.column_stack([model.predict(X) for model in self.models])
+        meta_learner.fit(base_predictions, X)
+        return meta_learner.predict(base_predictions)
+
+    def dynamic_confidence_weighting(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Perform dynamic confidence-based weighting for predictions.
+        
+        Args:
+            X: Input features
+        
+        Returns:
+            Array of predicted values
+        """
+        predictions = np.array([model.predict(X) for model in self.models])
+        confidences = np.array([model.predict_proba(X).max(axis=1) for model in self.models])
+        weights = confidences / np.sum(confidences, axis=0)
+        return np.dot(weights, predictions)
+
     def _calculate_metrics(self, y_true: pd.Series, y_pred: np.ndarray) -> Dict[str, float]:
         """Calculate performance metrics."""
         return {
