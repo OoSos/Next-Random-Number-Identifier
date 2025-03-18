@@ -1,7 +1,7 @@
 [tool.black]
 line-length = 100
-target-version = ['py38']
-include = '\.pyi?$'
+target-version = ["py38"]
+include = "\.pyi?$"
 exclude = '''
 /(
     \.git
@@ -19,3 +19,123 @@ exclude = '''
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+
+[tool.pyright]
+include = [
+    "src",
+    "src/visualization"
+]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "src/tests"
+]
+ignore = [
+    "src/tests/test_*.py"
+]
+defineConstant = {
+    "DEBUG": true
+}
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.8"
+strictListInference = true
+strictDictionaryInference = true
+strictParameterNullChecking = true
+reportOptionalSubscript = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalCall = "warning"
+reportOptionalIterable = "warning"
+reportOptionalContextManager = "warning"
+reportOptionalOperand = "warning"
+
+[project]
+name = "next_random_number_identifier"
+version = "2.0.0"
+description = "A machine learning-based system for analyzing and forecasting random number sequences"
+readme = "README.md"
+authors = [
+    { name = "OoSos", email = "author@example.com" }
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent"
+]
+keywords = ["random numbers", "prediction", "machine learning", "statistical analysis"]
+
+[project.urls]
+homepage = "https://github.com/OoSos/next-random-number-identifier"
+
+[project.dependencies]
+pandas = "*"
+numpy = "*"
+scikit-learn = "*"
+xgboost = "*"
+matplotlib = "*"
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "sphinx",
+    "sphinx_rtd_theme",
+    "tox",
+    "twine"
+]
+doc = [
+    "sphinx",
+    "sphinx_rtd_theme"
+]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-benchmark"
+]
+
+[project.scripts]
+rnni = "src.cli:run_cli"
+
+[tool.flake8]
+max-line-length = 100
+exclude = [".git", "__pycache__", "docs/conf.py", "old", "build", "dist"]
+ignore = ["E203", "W503"]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.mypy.plugins.numpy.*]
+follow_imports = "skip"
+
+[tool.mypy.plugins.pandas.*]
+follow_imports = "skip"
+
+[tool.mypy.plugins.matplotlib.*]
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
