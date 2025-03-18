@@ -24,6 +24,13 @@ For detailed documentation:
 - [Data Flow Diagram](docs/diagrams/NRNI%20Data-flow-diagram.png)
 - [Prediction Sequence Diagram](docs/diagrams/NRNI%20Prediction%20sequence-diagram.png)
 
+### Interactive Diagrams
+
+All architecture diagrams are available in Mermaid format for interactive viewing:
+- GitHub natively renders Mermaid diagrams in markdown files
+- Source `.mermaid` files are available in the `docs/diagrams/` directory
+- For interactive editing, use [Mermaid Live Editor](https://mermaid.live/)
+
 ## Project Structure
 - `src/`: Source code files
   - `models/`: ML and statistical models
