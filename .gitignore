@@ -63,3 +63,7 @@ build/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# Ignore build artifacts
+__pycache__/
+*.egg-info/
