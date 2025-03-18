@@ -751,3 +751,46 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         for group in self.feature_groups.values():
             all_features.extend(group)
         return all_features
+
+def add_statistical_features(df: pd.DataFrame, target_col: str = 'Number') -> pd.DataFrame:
+    """Add statistical features to the DataFrame."""
+    # Pre-calculate all features
+    new_features = {}
+    
+    # Calculate basic stats
+    rolling_windows = [3, 5, 7, 10]
+    for window in rolling_windows:
+        window_data = df[target_col].rolling(window)
+        new_features[f'RollingMean_{window}'] = window_data.mean()
+        new_features[f'RollingStd_{window}'] = window_data.std()
+        new_features[f'RollingMin_{window}'] = window_data.min()
+        new_features[f'RollingMax_{window}'] = window_data.max()
+        new_features[f'RollingSkew_{window}'] = window_data.apply(
+            lambda x: stats.skew(x) if len(x) > 2 else 0
+        )
+        new_features[f'RollingKurt_{window}'] = window_data.apply(
+            lambda x: stats.kurtosis(x) if len(x) > 3 else 0
+        )
+
+    # Calculate lag features
+    for lag in range(1, 6):
+        new_features[f'Lag_{lag}'] = df[target_col].shift(lag)
+        new_features[f'Diff_{lag}'] = df[target_col].diff(lag)
+
+    # Calculate transition features
+    transitions = df[target_col].diff()
+    new_features['TransitionType'] = np.sign(transitions)
+
+    # Calculate frequency features
+    number_counts = df[target_col].value_counts()
+    new_features['Frequency'] = df[target_col].map(number_counts)
+    new_features['FrequencyNorm'] = new_features['Frequency'] / len(df)
+    
+    median_freq = number_counts.median()
+    new_features['IsHot'] = df[target_col].map(lambda x: number_counts[x] > median_freq).astype(int)
+    new_features['IsCold'] = df[target_col].map(lambda x: number_counts[x] < median_freq).astype(int)
+
+    # Add all features at once
+    result = pd.concat([df, pd.DataFrame(new_features)], axis=1)
+    
+    return result

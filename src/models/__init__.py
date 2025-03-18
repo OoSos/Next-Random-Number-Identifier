@@ -5,7 +5,7 @@ from .random_forest import RandomForestModel
 from .markov_chain import MarkovChain, VariableOrderMarkovChain
 from .ensemble import ModelPerformanceTracker, EnhancedEnsemble
 from .adaptive_ensemble import AdaptiveEnsemble
-from .optimized_ensemble import OptimizedWeightEnsemble
+from .optimized_ensemble import OptimizedEnsemble
 
 __all__ = [
     'BaseModel',
@@ -15,5 +15,5 @@ __all__ = [
     'ModelPerformanceTracker',
     'EnhancedEnsemble', 
     'AdaptiveEnsemble',
-    'OptimizedWeightEnsemble'
+    'OptimizedEnsemble'
 ]

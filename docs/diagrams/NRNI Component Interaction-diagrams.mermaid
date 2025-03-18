@@ -1,0 +1,48 @@
+flowchart TB
+    subgraph "Data Processing Layer"
+        A1[EnhancedDataLoader] --> A2[DataSchemaValidator]
+        A1 --> A3[Data Preprocessing]
+        A2 --> A4[Data Profiling]
+        A3 --> A5[Standardized Dataset]
+    end
+
+    subgraph "Feature Engineering Layer"
+        B1[FeatureEngineer] --> B2[Time Features]
+        B1 --> B3[Statistical Features]
+        B1 --> B4[Lag Features]
+        B1 --> B5[Pattern Features]
+        B2 & B3 & B4 & B5 --> B6[Feature Set]
+        B6 --> B7[FeatureSelector]
+        B7 --> B8[Selected Features]
+    end
+
+    subgraph "Model Layer"
+        C1[BaseModel] --> C2[RandomForestModel]
+        C1 --> C3[XGBoostModel]
+        C1 --> C4[MarkovChain]
+        C1 --> C5[HybridForecaster]
+        C2 & C3 & C4 & C5 --> C6[Model Predictions]
+        C6 --> C7[EnhancedEnsemble]
+        C7 --> C8[Final Prediction]
+    end
+
+    subgraph "Evaluation & Monitoring Layer"
+        D1[ModelEvaluator] --> D2[Performance Metrics]
+        D2 --> D3[ModelPerformanceTracker]
+        D3 --> D4[Performance History]
+        D4 --> D5[ModelMonitor]
+        D5 --> D6[Drift Detection]
+    end
+
+    subgraph "User Interface Layer"
+        E1[CLI] --> E2[Configuration]
+        E1 --> E3[Visualization]
+        E1 --> E4[Reporting]
+    end
+
+    A5 --> B1
+    B8 --> C2 & C3 & C4 & C5
+    C8 --> D1
+    D6 --> C7
+    C8 --> E1
+    D2 --> E4

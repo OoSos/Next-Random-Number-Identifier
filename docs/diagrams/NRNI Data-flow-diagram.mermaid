@@ -1,0 +1,38 @@
+flowchart TD
+    Data[Historical CSV Data] --> |load_csv| DL[EnhancedDataLoader]
+    DL --> |validate_data| Validation[Data Validation]
+    DL --> |preprocess_data| Preprocessing[Data Preprocessing]
+    Preprocessing --> |transform| FE[FeatureEngineer]
+    
+    FE --> |create_time_features| Time[Time Features]
+    FE --> |create_statistical_features| Stats[Statistical Features]
+    FE --> |create_lag_features| Lag[Lag Features]
+    FE --> |create_pattern_features| Pattern[Pattern Features]
+    
+    Time & Stats & Lag & Pattern --> |transform| FeatSet[Feature Set]
+    FeatSet --> |fit_transform| FS[FeatureSelector]
+    FS --> |selected_features| SelectedFeatures[Selected Features]
+    
+    SelectedFeatures --> |fit| RF[RandomForestModel]
+    SelectedFeatures --> |fit| XGB[XGBoostModel]
+    SelectedFeatures --> |fit| MC[MarkovChain]
+    SelectedFeatures --> |fit| HF[HybridForecaster]
+    
+    RF --> |predict| RFPred[RF Predictions]
+    XGB --> |predict| XGBPred[XGB Predictions]
+    MC --> |predict| MCPred[MC Predictions]
+    HF --> |predict| HFPred[Hybrid Predictions]
+    
+    RFPred & XGBPred & MCPred & HFPred --> |fit| Ensemble[EnhancedEnsemble]
+    
+    SelectedFeatures --> |predict| Ensemble
+    Ensemble --> |predict| FinalPred[Final Prediction]
+    
+    FinalPred --> |evaluate| Eval[ModelEvaluator]
+    Eval --> |metrics| Metrics[Performance Metrics]
+    Metrics --> |update_metrics| Tracker[ModelPerformanceTracker]
+    Tracker --> |detect_drift| Monitor[ModelMonitor]
+    
+    FinalPred --> |display| CLI[Command Line Interface]
+    Metrics --> |display| CLI
+    Monitor --> |alert| CLI
