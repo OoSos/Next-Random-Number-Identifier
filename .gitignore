@@ -43,3 +43,23 @@ venv.bak/
 
 # Documentation
 docs/_build/
+
+# Dependency directories
+node_modules/
+
+# Output directories
+dist/
+build/
+
+# Environment variables
+.env
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Operating System Files
+.DS_Store
+Thumbs.db
