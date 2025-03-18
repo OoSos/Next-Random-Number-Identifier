@@ -1,0 +1,30 @@
+/* Custom styles for diagrams */
+.diagram {
+    max-width: 100%;
+    margin: 20px auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Adjust image sizes for different screen sizes */
+@media screen and (max-width: 768px) {
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+/* Add some spacing around diagrams */
+.section img {
+    margin: 2em 0;
+    border: 1px solid #e1e4e5;
+    padding: 10px;
+    background: white;
+}
+
+/* Caption styling */
+.figure-caption {
+    text-align: center;
+    font-style: italic;
+    color: #404040;
+    margin-top: 0.5em;
+}

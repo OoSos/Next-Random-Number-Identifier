@@ -1,6 +1,20 @@
 # Contributing to Next Random Number Identifier
 
-Thank you for considering contributing to the Next Random Number Identifier project! This document outlines the process and guidelines for contributing.
+Thank you for your interest in contributing to this project! Before you begin:
+
+## Understanding the Architecture
+
+Before making changes, please review these important architectural documents:
+- [Architecture Documentation](docs/Next%20Random%20Number%20Identifier-architecture-documentation.md)
+- [Component Interaction Diagram](docs/diagrams/NRNI%20Component%20Interaction-diagrams.png)
+- [Data Flow Diagram](docs/diagrams/NRNI%20Data-flow-diagram.png)
+- [Prediction Sequence Diagram](docs/diagrams/NRNI%20Prediction%20sequence-diagram.png)
+
+These documents will help you understand:
+- The overall system design
+- How components interact
+- Data flow through the system
+- The prediction process
 
 ## Code of Conduct
 
@@ -35,6 +49,15 @@ This section guides you through submitting an enhancement suggestion, including 
 - Update any relevant documentation
 - The PR should work for Python 3.8, 3.9, and 3.10
 
+## Development Process
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Run the tests and linting checks (`pytest` and `flake8`)
+4. Commit your changes (`git commit -m 'Add some amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
 ## Development Setup
 
 1. Fork and clone the repository
@@ -43,6 +66,14 @@ This section guides you through submitting an enhancement suggestion, including 
    - Windows: `venv\Scripts\activate`
    - Unix/macOS: `source venv/bin/activate`
 4. Install dependencies: `pip install -e ".[dev]"`
+
+## Development Guidelines
+
+- Follow PEP 8 style guide
+- Add type hints to all functions
+- Write unit tests for new features
+- Update documentation when changing functionality
+- Run the full test suite before submitting PR
 
 ## Project Structure
 
@@ -64,6 +95,15 @@ For coverage report:
 ```bash
 pytest --cov=src tests/
 ```
+
+## Code Quality Checks
+
+This project uses several tools to maintain code quality:
+- Type checking: MyPy
+- Code formatting: Black
+- Import ordering: isort
+- Linting: Flake8
+- Testing: pytest
 
 ## Code Style
 

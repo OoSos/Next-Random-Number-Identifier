@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant User
+    participant CLI
+    participant DL as EnhancedDataLoader
+    participant FE as FeatureEngineer
+    participant Models as ML Models
+    participant Ensemble as EnhancedEnsemble
+    participant Monitor as ModelMonitor
+    
+    User->>CLI: Request prediction
+    CLI->>DL: load_csv(filename)
+    DL->>DL: validate_data()
+    DL->>DL: preprocess_data()
+    DL->>CLI: Return preprocessed data
+    
+    CLI->>FE: transform(data)
+    FE->>FE: create_features()
+    FE->>CLI: Return feature set
+    
+    CLI->>Models: predict(features)
+    Models->>CLI: Return individual predictions
+    
+    CLI->>Ensemble: predict(features)
+    Ensemble->>Ensemble: combine_predictions()
+    Ensemble->>Ensemble: estimate_confidence()
+    Ensemble->>CLI: Return final prediction with confidence
+    
+    CLI->>Monitor: check_drift(predictions)
+    Monitor->>CLI: Return drift status
+    
+    CLI->>User: Display prediction and confidence

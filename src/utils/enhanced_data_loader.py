@@ -1,128 +1,240 @@
-import os
-import logging
+from typing import Dict, Any, Optional, Union, List, Tuple, TypedDict, Literal, TypeVar, cast
+from typing_extensions import NotRequired
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any, Optional, Union, List, Tuple
+import os
+from pandas.api.types import (
+    is_datetime64_any_dtype,
+    is_numeric_dtype,
+    is_string_dtype
+)
+import logging
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar('T')
+V = TypeVar('V')
+
+def safe_dict_merge(base: Dict[str, Any], update: Dict[str, Any]) -> Dict[str, Any]:
+    """Safely merge two dictionaries, handling None values."""
+    result = base.copy()
+    for k, v in update.items():
+        if v is not None:
+            result[k] = v
+    return result
+
+class ErrorList(List[str]):
+    """Type-safe list for error messages."""
+    pass
+
+class WarningList(List[str]):
+    """Type-safe list for warning messages."""
+    pass
+
+class FileInfo(TypedDict):
+    path: str
+    exists: bool
+    size: int
+    format: str
+    row_count: int
+    column_count: int
+
+class FileLoadResult(TypedDict):
+    success: bool
+    errors: ErrorList
+    warnings: WarningList
+    file_info: FileInfo
+
+class ColumnStats(TypedDict, total=False):
+    value_counts: Dict[str, int]
+    most_common: Dict[str, int]
+    min: Optional[Union[float, pd.Timestamp]]
+    max: Optional[Union[float, pd.Timestamp]]
+    mean: Optional[float]
+    median: Optional[float]
+    std: Optional[float]
+    unique_values: int
+    range_days: Optional[int]
+
+class ColumnProfile(TypedDict):
+    dtype: str
+    missing_count: int
+    missing_percentage: float
+    stats: ColumnStats
+
+class ValidationStats(TypedDict):
+    """Statistics from validation operations."""
+    min_date: Optional[pd.Timestamp]
+    max_date: Optional[pd.Timestamp]
+    is_chronological: bool
+    duplicate_dates: int
+    large_gaps: Optional[int]
+    quality: Optional[Dict[str, Union[int, float]]]
+    min: Optional[float]
+    max: Optional[float]
+    mean: Optional[float]
+    median: Optional[float]
+    std: Optional[float]
+    outliers: Optional[int]
+    value_distribution: Optional[Dict[str, Any]]
+    chi2_uniformity: Optional[float]
+    chi2_p_value: Optional[float]
+
+class ValidationResult(TypedDict):
+    """Result of a validation operation."""
+    valid: bool
+    errors: ErrorList
+    warnings: WarningList
+    stats: ValidationStats
+
+def create_validation_result() -> ValidationResult:
+    """Create a properly initialized validation result."""
+    return {
+        'valid': True,
+        'errors': ErrorList(),
+        'warnings': WarningList(),
+        'stats': {
+            'min_date': None,
+            'max_date': None,
+            'is_chronological': False,
+            'duplicate_dates': 0,
+            'large_gaps': None,
+            'quality': None,
+            'min': None,
+            'max': None,
+            'mean': None,
+            'median': None,
+            'std': None,
+            'outliers': None,
+            'value_distribution': None,
+            'chi2_uniformity': None,
+            'chi2_p_value': None
+        }
+    }
+
+class ValidationProfile(TypedDict):
+    dataframe: ValidationResult
+    date_sequence: NotRequired[ValidationResult]
+    number_sequence: NotRequired[ValidationResult]
+    valid: bool
+
+
+class CSVReadParams(TypedDict, total=False):
+    """Type hints for pandas read_csv parameters"""
+    sep: Optional[str]
+    delimiter: Optional[str]
+    header: Union[int, List[int], Literal['infer'], None]
+    names: Optional[List[str]]
+    dtype: Optional[Dict[str, Any]]
+    engine: Optional[Literal['c', 'python', 'pyarrow']]
+    converters: Optional[Dict[str, Any]]
+    true_values: Optional[List[str]]
+    false_values: Optional[List[str]]
+    skipinitialspace: bool
+    skiprows: Optional[Union[int, List[int]]]
+    skipfooter: int
+    nrows: Optional[int]
+    na_values: Optional[Union[List[str], Dict[str, List[str]]]]
+    keep_default_na: bool
+    na_filter: bool
+    verbose: bool
+    skip_blank_lines: bool
+    parse_dates: Union[bool, List[int], List[str], Dict[str, List[str]]]
+    thousands: Optional[str]
+    decimal: str
+    encoding: Optional[str]
+    on_bad_lines: Literal['error', 'warn', 'skip']
+
 
 class DataSchemaValidator:
     """Validates data schema, structure, and content integrity."""
     
     @staticmethod
     def validate_dataframe(
-        df: pd.DataFrame, 
+        df: pd.DataFrame,
         required_columns: List[str] = ["Date", "Number"],
         date_column: str = "Date",
         value_column: str = "Number"
-    ) -> Dict[str, Any]:
-        """
-        Comprehensive validation of DataFrame structure and content.
-        
-        Args:
-            df: DataFrame to validate
-            required_columns: List of columns that must be present
-            date_column: Name of the date column
-            value_column: Name of the value column
-            
-        Returns:
-            Dictionary with validation results
-        """
-        results = {
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "missing_columns": [],
-            "data_quality": {}
-        }
-        
-        # Check if DataFrame is empty
+    ) -> ValidationResult:
+        """Validate DataFrame structure and content."""
+        result = create_validation_result()
+
         if df.empty:
-            results["valid"] = False
-            results["errors"].append("DataFrame is empty")
-            return results
-            
-        # Check for required columns
+            result["valid"] = False
+            result["errors"].append("DataFrame is empty")
+            return result
+
         for col in required_columns:
             if col not in df.columns:
-                results["missing_columns"].append(col)
-                results["warnings"].append(f"Missing required column: {col}")
-                
-        if results["missing_columns"]:
-            results["valid"] = False
-            
-        # Check data types if columns exist
+                result["errors"].append(f"Missing required column: {col}")
+
+        if result["errors"]:
+            result["valid"] = False
+            return result
+
         if date_column in df.columns:
-            if not pd.api.types.is_datetime64_any_dtype(df[date_column]):
-                results["warnings"].append(f"{date_column} column is not datetime type")
-                
+            if not is_datetime64_any_dtype(df[date_column]):
+                result["warnings"].append(f"{date_column} column is not datetime type")
+
         if value_column in df.columns:
-            if not pd.api.types.is_numeric_dtype(df[value_column]):
-                results["warnings"].append(f"{value_column} column is not numeric type")
-                
-        # Check for missing values and calculate data quality metrics
-        if not df.empty:
-            total_cells = df.size
-            missing_cells = df.isna().sum().sum()
-            missing_percentage = (missing_cells / total_cells) * 100 if total_cells > 0 else 0
-            
-            results["data_quality"] = {
-                "row_count": len(df),
-                "column_count": len(df.columns),
-                "total_cells": total_cells,
-                "missing_cells": missing_cells,
-                "missing_percentage": missing_percentage,
-                "column_stats": {}
-            }
-            
-            # Column-specific statistics
-            for col in df.columns:
-                col_missing = df[col].isna().sum()
-                col_missing_pct = (col_missing / len(df)) * 100
-                
-                results["data_quality"]["column_stats"][col] = {
-                    "missing_count": int(col_missing),
-                    "missing_percentage": float(col_missing_pct),
-                    "dtype": str(df[col].dtype)
-                }
-                
-                if col_missing > 0:
-                    if col_missing_pct > 50:
-                        results["errors"].append(f"Column {col} has {col_missing_pct:.1f}% missing values")
-                    else:
-                        results["warnings"].append(f"Column {col} has {col_missing_pct:.1f}% missing values")
-        
-        return results
-    
+            if not is_numeric_dtype(df[value_column]):
+                result["warnings"].append(f"{value_column} column is not numeric type")
+
+        # Calculate data quality metrics
+        total_cells = df.size
+        missing_cells = df.isna().sum().sum()
+        missing_percentage = (missing_cells / total_cells) * 100
+
+        result["stats"]["quality"] = {
+            "row_count": len(df),
+            "column_count": len(df.columns),
+            "total_cells": total_cells,
+            "missing_cells": int(missing_cells),
+            "missing_percentage": float(missing_percentage)
+        }
+
+        # Column-specific validation
+        for col in df.columns:
+            col_missing = df[col].isna().sum()
+            col_missing_pct = (col_missing / len(df)) * 100
+
+            if col_missing > 0:
+                msg = f"Column {col} has {col_missing_pct:.1f}% missing"
+                if col_missing_pct > 50:
+                    result["errors"].append(msg)
+                else:
+                    result["warnings"].append(msg)
+
+        return result
+
     @staticmethod
     def validate_date_sequence(
-        dates: pd.Series, 
+        dates: pd.Series,
         min_date: Optional[pd.Timestamp] = None,
         max_date: Optional[pd.Timestamp] = None
-    ) -> Dict[str, Any]:
-        """
-        Validate a sequence of dates for chronological order and consistency.
-        
-        Args:
-            dates: Series of dates to validate
-            min_date: Optional minimum acceptable date
-            max_date: Optional maximum acceptable date
-            
-        Returns:
-            Dictionary with validation results
-        """
-        results = {
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "stats": {}
-        }
+    ) -> ValidationResult:
+        """Validate date sequence for chronological order and consistency."""
+        results = create_validation_result()
         
         if dates.empty:
             results["valid"] = False
             results["errors"].append("Date series is empty")
             return results
+
+        # Ensure dates are datetime type
+        try:
+            if not pd.api.types.is_datetime64_any_dtype(dates):
+                dates = pd.to_datetime(dates, errors='coerce')
+        except Exception as e:
+            results["valid"] = False
+            results["errors"].append(f"Failed to convert dates to datetime: {str(e)}")
+            return results
+            
+        # Store min and max dates
+        results["stats"]["min_date"] = dates.min()
+        results["stats"]["max_date"] = dates.max()
             
         # Check if dates are sorted
         is_sorted = dates.equals(dates.sort_values())
@@ -135,130 +247,82 @@ class DataSchemaValidator:
         duplicate_count = duplicates.sum()
         results["stats"]["duplicate_dates"] = int(duplicate_count)
         if duplicate_count > 0:
-            results["warnings"].append(f"Found {duplicate_count} duplicate dates")
+            results["warnings"].append(
+                f"Found {duplicate_count} duplicate dates"
+            )
             
-        # Check date range
-        min_observed = dates.min()
-        max_observed = dates.max()
-        results["stats"]["min_date"] = min_observed
-        results["stats"]["max_date"] = max_observed
-        results["stats"]["date_range_days"] = (max_observed - min_observed).days
-        
-        # Validate against provided bounds
-        if min_date is not None and min_observed < min_date:
-            results["errors"].append(f"Dates before minimum allowed date ({min_date})")
-            results["valid"] = False
-            
-        if max_date is not None and max_observed > max_date:
-            results["errors"].append(f"Dates after maximum allowed date ({max_date})")
-            results["valid"] = False
-            
-        # Analyze date differences
-        if len(dates) > 1:
+        # Additional date analysis
+        if len(dates.dropna()) > 1:
             date_diffs = dates.sort_values().diff().dropna()
-            
-            # Calculate statistics
-            results["stats"]["min_diff_days"] = int(date_diffs.dt.days.min())
-            results["stats"]["max_diff_days"] = int(date_diffs.dt.days.max())
-            results["stats"]["mean_diff_days"] = float(date_diffs.dt.days.mean())
-            results["stats"]["median_diff_days"] = int(date_diffs.dt.days.median())
-            
-            # Find gaps in the sequence
-            large_gaps = date_diffs[date_diffs.dt.days > 7]
-            if not large_gaps.empty:
-                results["stats"]["large_gaps"] = len(large_gaps)
-                results["warnings"].append(f"Found {len(large_gaps)} large gaps (>7 days) in date sequence")
-            
-            # Count occurrences of each difference
-            diff_counts = date_diffs.dt.days.value_counts().sort_index()
-            results["stats"]["interval_distribution"] = diff_counts.to_dict()
-            
-            # Identify most common intervals
-            most_common = diff_counts.nlargest(3)
-            results["stats"]["most_common_intervals"] = most_common.to_dict()
-            
+            try:
+                large_gaps = date_diffs[date_diffs.dt.days > 7]
+                
+                if not large_gaps.empty:
+                    msg = f"Found {len(large_gaps)} gaps >7 days in sequence"
+                    results["stats"]["large_gaps"] = len(large_gaps)
+                    results["warnings"].append(msg)
+            except Exception as e:
+                results["warnings"].append(f"Could not analyze date gaps: {str(e)}")
+        
         return results
-    
+
     @staticmethod
     def validate_number_sequence(
         numbers: pd.Series,
         expected_min: Optional[int] = None,
         expected_max: Optional[int] = None
-    ) -> Dict[str, Any]:
-        """
-        Validate a sequence of numbers for range, distribution, and potential anomalies.
-        
-        Args:
-            numbers: Series of numbers to validate
-            expected_min: Optional minimum expected value
-            expected_max: Optional maximum expected value
-            
-        Returns:
-            Dictionary with validation results
-        """
-        results = {
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "stats": {}
-        }
-        
+    ) -> ValidationResult:
+        """Validate a sequence of numbers."""
+        result = create_validation_result()
+
         if numbers.empty:
-            results["valid"] = False
-            results["errors"].append("Number series is empty")
-            return results
-            
+            result["valid"] = False
+            result["errors"].append("Number series is empty")
+            return result
+
         # Basic statistics
         observed_min = numbers.min()
         observed_max = numbers.max()
-        results["stats"]["min"] = float(observed_min)
-        results["stats"]["max"] = float(observed_max)
-        results["stats"]["mean"] = float(numbers.mean())
-        results["stats"]["median"] = float(numbers.median())
-        results["stats"]["std"] = float(numbers.std())
-        
-        # Validate against expected range
+        result["stats"]["min"] = float(observed_min)
+        result["stats"]["max"] = float(observed_max)
+        result["stats"]["mean"] = float(numbers.mean())
+        result["stats"]["median"] = float(numbers.median())
+        result["stats"]["std"] = float(numbers.std())
+
+        # Range validation
         if expected_min is not None and observed_min < expected_min:
-            results["errors"].append(f"Values below minimum expected value ({expected_min})")
-            results["valid"] = False
-            
+            result["errors"].append(f"Values below minimum expected value ({expected_min})")
+            result["valid"] = False
+
         if expected_max is not None and observed_max > expected_max:
-            results["errors"].append(f"Values above maximum expected value ({expected_max})")
-            results["valid"] = False
-            
-        # Check for outliers using IQR method
-        q1 = numbers.quantile(0.25)
-        q3 = numbers.quantile(0.75)
+            result["errors"].append(f"Values above maximum expected value ({expected_max})")
+            result["valid"] = False
+
+        # Outlier detection using IQR method
+        q1, q3 = numbers.quantile([0.25, 0.75])
         iqr = q3 - q1
-        lower_bound = q1 - (1.5 * iqr)
-        upper_bound = q3 + (1.5 * iqr)
-        
-        outliers = numbers[(numbers < lower_bound) | (numbers > upper_bound)]
-        outlier_count = len(outliers)
-        
-        results["stats"]["outliers"] = int(outlier_count)
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        outlier_count = ((numbers < lower_bound) | (numbers > upper_bound)).sum()
+        result["stats"]["outliers"] = int(outlier_count)
+
         if outlier_count > 0:
-            results["warnings"].append(f"Found {outlier_count} outliers using IQR method")
-            
+            result["warnings"].append(f"Found {outlier_count} outliers using IQR method")
+
         # Distribution analysis
-        value_counts = numbers.value_counts().sort_index()
-        results["stats"]["value_distribution"] = value_counts.to_dict()
-        
-        # Chi-square test for uniformity (if applicable for random numbers)
-        # Only apply if we have expected bounds
+        value_counts = numbers.value_counts()
+        result["stats"]["value_distribution"] = value_counts.to_dict()
+
+        # Chi-square test for uniformity
         if expected_min is not None and expected_max is not None:
-            unique_values = sorted(numbers.unique())
-            observed = [value_counts.get(val, 0) for val in unique_values]
-            n = len(numbers)
-            k = len(unique_values)
-            expected = [n/k] * k  # Uniform distribution
-            
-            # Compute chi-square statistic
-            chi2 = sum([(o - e)**2 / e for o, e in zip(observed, expected)])
-            results["stats"]["chi2_uniformity"] = float(chi2)
-            results["stats"]["chi2_p_value"] = None  # Would need scipy to compute p-value
-            
-        return results
+            k = expected_max - expected_min + 1
+            expected = [len(numbers)/k] * k
+            observed = [value_counts.get(i, 0) for i in range(expected_min, expected_max + 1)]
+            chi2 = sum((o - e) ** 2 / e for o, e in zip(observed, expected))
+            result["stats"]["chi2_uniformity"] = float(chi2)
+            result["stats"]["chi2_p_value"] = None
+
+        return result
 
 
 class EnhancedDataLoader:
@@ -350,8 +414,8 @@ class EnhancedDataLoader:
         file_path = Path(file_path)
         results = {
             'success': False,
-            'errors': [],
-            'warnings': [],
+            'errors': ErrorList(),
+            'warnings': WarningList(),
             'file_info': {
                 'path': str(file_path),
                 'exists': file_path.exists(),
@@ -421,40 +485,40 @@ class EnhancedDataLoader:
             return pd.DataFrame(), results
     
     def _load_csv(self, file_path: Path, **kwargs) -> pd.DataFrame:
-        """
-        Load data from a CSV file with comprehensive error handling.
-        
-        Args:
-            file_path: Path to the CSV file
-            **kwargs: Additional arguments to pass to pd.read_csv
-            
-        Returns:
-            DataFrame containing the CSV data
-        """
-        # Set default parameters that can be overridden
-        params = {
+        """Safe CSV loader with robust error handling."""
+        typed_params: Dict[str, Any] = {
             'skipinitialspace': True,
             'on_bad_lines': 'warn',
-            'low_memory': False
+            'header': 'infer',
+            'encoding': None,
+            'engine': 'python',  # Use python engine for better error handling
+            'dtype': None,
+            'parse_dates': False,
+            'keep_default_na': True,
+            'na_filter': True,
+            'skip_blank_lines': True
         }
-        params.update(kwargs)
+        
+        # Override defaults with provided kwargs, maintaining type safety
+        safe_params = {
+            k: v for k, v in {**typed_params, **kwargs}.items() 
+            if v is not None
+        }
         
         try:
-            df = pd.read_csv(file_path, **params)
+            df = pd.read_csv(str(file_path), **safe_params)
             self.logger.info(f"Successfully loaded CSV from {file_path} with shape {df.shape}")
             return df
         except pd.errors.ParserError as e:
             self.logger.error(f"CSV parsing error: {str(e)}")
             # Try with different parameters
-            self.logger.info("Attempting to load with error_bad_lines=False")
-            params['on_bad_lines'] = 'skip'
-            return pd.read_csv(file_path, **params)
+            safe_params['on_bad_lines'] = 'skip'
+            return pd.read_csv(str(file_path), **safe_params)
         except UnicodeDecodeError as e:
             self.logger.error(f"Unicode decode error: {str(e)}")
             # Try with different encoding
-            self.logger.info("Attempting to load with encoding='latin1'")
-            params['encoding'] = 'latin1'
-            return pd.read_csv(file_path, **params)
+            safe_params['encoding'] = 'latin1'
+            return pd.read_csv(str(file_path), **safe_params)
         except Exception as e:
             self.logger.error(f"Error loading CSV: {str(e)}")
             raise
@@ -462,26 +526,21 @@ class EnhancedDataLoader:
     def _load_csv_fallback(self, file_path: Path) -> pd.DataFrame:
         """
         Manual fallback loader for CSV files when pandas parser fails.
-        
-        Args:
-            file_path: Path to the CSV file
-            
-        Returns:
-            DataFrame constructed from the CSV data
         """
         self.logger.info(f"Using manual CSV parser for {file_path}")
-        rows = []
+        rows: List[Dict[str, Any]] = []
         
         with open(file_path, 'r', errors='replace') as f:
-            # Read header
             header_line = f.readline().strip()
+            delimiter = ','  # default delimiter
             
             # Try different delimiters
-            for delimiter in [',', ';', '\t', '|']:
-                header = header_line.split(delimiter)
+            for test_delimiter in [',', ';', '\t', '|']:
+                header = header_line.split(test_delimiter)
                 if len(header) > 1:
+                    delimiter = test_delimiter
                     break
-            
+                    
             # Process data rows
             for i, line in enumerate(f):
                 try:
@@ -493,13 +552,13 @@ class EnhancedDataLoader:
                     
                     # Pad or trim values to match header length
                     if len(values) < len(header):
-                        values.extend([None] * (len(header) - len(values)))
+                        values.extend([''] * (len(header) - len(values)))
                     elif len(values) > len(header):
                         values = values[:len(header)]
                         
                     rows.append(dict(zip(header, values)))
                 except Exception as e:
-                    self.logger.warning(f"Error processing line {i+2}: {str(e)}")
+                    self.logger.warning(f"Error processing line {i + 2}: {str(e)}")
         
         # Create DataFrame
         df = pd.DataFrame(rows)
@@ -507,13 +566,13 @@ class EnhancedDataLoader:
         # Convert columns to appropriate types
         for col in df.columns:
             # Try to convert to numeric
-            df[col] = pd.to_numeric(df[col], errors='ignore')
+            df[col] = pd.to_numeric(df[col], errors='coerce')
             
             # Try to convert to datetime if 'date' in column name
             if 'date' in col.lower() or 'time' in col.lower():
                 try:
-                    df[col] = pd.to_datetime(df[col], errors='ignore')
-                except:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                except Exception:
                     pass
         
         self.logger.info(f"Manual CSV parsing successful with shape {df.shape}")
@@ -644,7 +703,7 @@ class EnhancedDataLoader:
         df = self.load_csv(filename, **kwargs)
         return self.preprocess_data(df)
     
-    def validate_data(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def validate_data(self, df: pd.DataFrame) -> ValidationProfile:
         """
         Run comprehensive validation on a DataFrame.
         
@@ -654,8 +713,32 @@ class EnhancedDataLoader:
         Returns:
             Dictionary with validation results
         """
-        results = {
-            'dataframe': self.validator.validate_dataframe(df)
+        base_validation: ValidationStats = {
+            'min_date': None,
+            'max_date': None,
+            'is_chronological': False,
+            'duplicate_dates': 0,
+            'large_gaps': None,
+            'quality': None,
+            'min': None,
+            'max': None,
+            'mean': None,
+            'median': None,
+            'std': None,
+            'outliers': None,
+            'value_distribution': None,
+            'chi2_uniformity': None,
+            'chi2_p_value': None
+        }
+        
+        results: ValidationProfile = {
+            'dataframe': {
+                'valid': True,
+                'errors': ErrorList(),
+                'warnings': WarningList(),
+                'stats': base_validation.copy()
+            },
+            'valid': True
         }
         
         # Add date validation if applicable
@@ -667,61 +750,32 @@ class EnhancedDataLoader:
         if 'Number' in df.columns:
             number_results = self.validator.validate_number_sequence(
                 df['Number'],
-                expected_min=1,  # Assuming numbers are 1-10
+                expected_min=1,
                 expected_max=10
             )
-            results['number_sequence'] = number_results
+            # Safe merging with type checking
+            number_stats = safe_dict_merge(base_validation.copy(), number_results['stats'])
+            results['number_sequence'] = cast(ValidationResult, {
+                'valid': number_results['valid'],
+                'errors': number_results['errors'].copy(),
+                'warnings': number_results['warnings'].copy(),
+                'stats': cast(ValidationStats, number_stats)
+            })
             
-        # Overall validity
-        results['valid'] = all(r.get('valid', True) for r in results.values())
+        # Overall validity - safely handle optional fields
+        all_results = [results['dataframe']]
+        if 'date_sequence' in results:
+            all_results.append(results['date_sequence'])
+        if 'number_sequence' in results:
+            all_results.append(results['number_sequence'])
+            
+        has_errors = any(
+            bool(r.get('errors', [])) for r in all_results if r is not None
+        )
+        results['valid'] = not has_errors
             
         return results
-    
-    def generate_synthetic_data(
-        self, 
-        num_rows: int = 100, 
-        start_date: str = '2020-01-01',
-        max_number: int = 10, 
-        min_number: int = 1,
-        filename: Optional[str] = None
-    ) -> pd.DataFrame:
-        """
-        Generate synthetic data for testing.
-        
-        Args:
-            num_rows: Number of rows to generate
-            start_date: Starting date for the sequence
-            max_number: Maximum random number
-            min_number: Minimum random number
-            filename: Optional filename to save the generated data
-            
-        Returns:
-            DataFrame with synthetic data
-        """
-        self.logger.info(f"Generating synthetic data with {num_rows} rows")
-        
-        # Generate dates with a realistic pattern (not all consecutive days)
-        base_dates = pd.date_range(start=start_date, periods=num_rows * 2, freq='D')
-        dates = base_dates[np.sort(np.random.choice(len(base_dates), num_rows, replace=False))]
-        dates = dates.sort_values()
-        
-        # Generate random numbers
-        numbers = np.random.randint(min_number, max_number + 1, size=num_rows)
-        
-        # Create DataFrame
-        df = pd.DataFrame({
-            'Date': dates,
-            'Number': numbers
-        })
-        
-        # Save to file if filename provided
-        if filename:
-            file_path = self.data_dir / filename
-            df.to_csv(file_path, index=False)
-            self.logger.info(f"Saved synthetic data to {file_path}")
-        
-        return df
-    
+
     def get_data_profile(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
         Generate a comprehensive data profile for exploratory analysis.
@@ -777,7 +831,7 @@ class EnhancedDataLoader:
                 })
             
             # String/categorical column stats
-            elif pd.api.types.is_string_dtype(col_data) or pd.api.types.is_categorical_dtype(col_data):
+            elif pd.api.types.is_string_dtype(col_data):
                 col_profile.update({
                     'unique_values': int(col_data.nunique()),
                     'most_common': col_data.value_counts().head(5).to_dict() if not col_data.empty else None
@@ -786,6 +840,51 @@ class EnhancedDataLoader:
             profile['column_profiles'][col] = col_profile
         
         return profile
+
+    def generate_synthetic_data(
+        self, 
+        num_rows: int = 100, 
+        start_date: str = '2020-01-01',
+        max_number: int = 10, 
+        min_number: int = 1,
+        filename: Optional[str] = None
+    ) -> pd.DataFrame:
+        """
+        Generate synthetic data for testing.
+        
+        Args:
+            num_rows: Number of rows to generate
+            start_date: Starting date for the sequence
+            max_number: Maximum random number
+            min_number: Minimum random number
+            filename: Optional filename to save the generated data
+            
+        Returns:
+            DataFrame with synthetic data
+        """
+        self.logger.info(f"Generating synthetic data with {num_rows} rows")
+        
+        # Generate dates with a realistic pattern (not all consecutive days)
+        base_dates = pd.date_range(start=start_date, periods=num_rows * 2, freq='D')
+        dates = base_dates[np.sort(np.random.choice(len(base_dates), num_rows, replace=False))]
+        dates = dates.sort_values()
+        
+        # Generate random numbers
+        numbers = np.random.randint(min_number, max_number + 1, size=num_rows)
+        
+        # Create DataFrame
+        df = pd.DataFrame({
+            'Date': dates,
+            'Number': numbers
+        })
+        
+        # Save to file if filename provided
+        if filename:
+            file_path = self.data_dir / filename
+            df.to_csv(file_path, index=False)
+            self.logger.info(f"Saved synthetic data to {file_path}")
+        
+        return df
 
 
 # Example usage

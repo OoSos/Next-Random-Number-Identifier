@@ -1,3 +1,20 @@
+"""
+Enhanced Ensemble Model for Next Random Number Identifier
+
+This module implements the ensemble model that combines predictions from multiple
+base models. For detailed information about the system architecture and how this
+component fits into the larger system, please refer to:
+
+- Architecture Documentation: docs/Next Random Number Identifier-architecture-documentation.md
+- Component Interaction: docs/diagrams/NRNI Component Interaction-diagrams.png
+- Data Flow: docs/diagrams/NRNI Data-flow-diagram.png
+
+The ensemble model integrates predictions from:
+- Random Forest Regression
+- XGBoost Classification
+- Markov Chain Analysis
+"""
+
 from typing import List, Dict, Optional, Any
 import numpy as np
 import pandas as pd
@@ -541,7 +558,7 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         # Normalize importance values
         if importance_dict:
             max_importance = max(importance_dict.values())
-            if max_importance > 0:
+            if (max_importance > 0):
                 importance_dict = {
                     feature: float(importance / max_importance)
                     for feature, importance in importance_dict.items()

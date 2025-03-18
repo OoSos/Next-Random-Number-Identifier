@@ -6,6 +6,7 @@ Welcome to Next Random Number Identifier's documentation!
    :caption: Contents:
 
    introduction
+   architecture
    installation
    usage
    modules

@@ -8,6 +8,7 @@ from datetime import datetime
 
 # Add source directory to path
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../..'))
 
 # Project information
 project = 'Next Random Number Identifier'
@@ -33,10 +34,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # HTML output
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_static_path = ['_static', '../diagrams']
 html_title = f"{project} v{version}"
 html_logo = None  # Add path to logo if available
 html_favicon = None  # Add path to favicon if available
+
+# Allow non-local images
+suppress_warnings = ['image.nonlocal_uri']
 
 # Theme options
 html_theme_options = {
@@ -83,3 +87,14 @@ intersphinx_mapping = {
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable', None),
     'sklearn': ('https://scikit-learn.org/stable', None),
 }
+
+# Copy diagrams to build directory during build
+def setup(app):
+    app.add_css_file('custom.css')
+    # Copy diagram files
+    app.connect('builder-inited', lambda app: None)
+    return {
+        'version': '0.1',
+        'parallel_read_safe': True,
+        'parallel_write_safe': True,
+    }

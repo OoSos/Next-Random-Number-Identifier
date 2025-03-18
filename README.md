@@ -12,53 +12,17 @@ A machine learning-based system for analyzing and forecasting random number sequ
 - Frequency Analysis
 - Enhanced Ensemble Integration
 
-## Project Structure
-- `src/`: Source code files
-  - `random_number_forecast.py`: Main forecasting model (v1.0)
-- `data/`: Data files and datasets
-- `models/`: Saved model files
-- `tests/`: Test files
+## Architecture
 
-## Requirements
-- pandas
-- numpy
-- scikit-learn
-- xgboost
-- matplotlib
+The NRNI system uses a layered architecture with data processing, feature engineering, 
+modeling, and ensemble components. The system is designed with clear separation of concerns
+and modular components for maximum flexibility and maintainability.
 
-## Setup
-[Setup instructions will be added]
-
-## Usage
-[Usage instructions will be added]
-
-## Dataset
-The project uses a historical dataset of random numbers (`data/historical_random_numbers.csv`) which includes:
-- Historical random number selections
-- Dates of selections
-- [Add any other relevant details about your dataset]
-
-## File Structure
-- `src/`
-  - `random_number_forecast.py`: Main forecasting model (v1.0)
-- `data/`
-  - `historical_random_numbers.csv`: Historical random numbers dataset
-- `models/`
-- `tests/`
-
-# Next Random Number Identifier
-
-[![GitHub Actions Status](https://github.com/OoSos/next-random-number-identifier/workflows/Enhanced%20Next%20Random Number Identifier%20CI/CD/badge.svg)](https://github.com/OoSos/next-random-number-identifier/actions)
-[![codecov](https://codecov.io/gh/OoSos/next-random-number-identifier/branch/main/graph/badge.svg)](https://codecov.io/gh/OoSos/next-random-number-identifier)
-[![Documentation Status](https://github.com/OoSos/next-random-number-identifier/workflows/docs/badge.svg)](https://OoSos.github.io/next-random-number-identifier/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
-A machine learning-based system for analyzing and forecasting random number sequences using multiple approaches:
-- Random Forest Regression
-- XGBoost Classification
-- Markov Chain Analysis
-- Frequency Analysis
-- Enhanced Ensemble Integration
+For detailed documentation:
+- [Architecture Documentation](docs/Next%20Random%20Number%20Identifier-architecture-documentation.md)
+- [Component Interaction Diagram](docs/diagrams/NRNI%20Component%20Interaction-diagrams.png)
+- [Data Flow Diagram](docs/diagrams/NRNI%20Data-flow-diagram.png)
+- [Prediction Sequence Diagram](docs/diagrams/NRNI%20Prediction%20sequence-diagram.png)
 
 ## Project Structure
 - `src/`: Source code files
@@ -79,16 +43,18 @@ A machine learning-based system for analyzing and forecasting random number sequ
     - `plots.py`: Plotting functions
 - `tests/`: Test files
 - `data/`: Data files and datasets
+  - `historical_random_numbers.csv`: Historical random numbers dataset
 - `docs/`: Documentation
+- `models/`: Saved model files
 
-## Requirements
+## Requirements & Installation
+
+### Python Requirements
 - pandas
 - numpy
 - scikit-learn
 - xgboost
 - matplotlib
-
-## Installation
 
 ```bash
 # Clone the repository
@@ -179,47 +145,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 * AIQube Centaur Systems Team for project development
 * Anthropic Claude for implementation guidance
-
-# Next Random Number Identifier
-
-A simple command-line application that identifies how numbers relate to each other.
-
-## Features
-
-- Track and identify the relationship between consecutive numbers
-- Determine if a number is higher or lower than the previous one
-- Calculate the difference between consecutive numbers
-- Reset the tracking state
-
-## Installation
-
-1. Clone this repository
-2. Install dependencies:
-   ```
-   npm install
-   ```
-3. Build the project:
-   ```
-   npm run build
-   ```
-
-## Usage
-
-Run the application with:
-
-```
-npm start
-```
-
-Commands:
-- Enter numbers to compare them with the previous ones
-- Type 'reset' to clear the last number
-- Type 'exit' to quit the application
-
-## Development
-
-To build and run in development mode:
-
-```
-npm run dev
-```
