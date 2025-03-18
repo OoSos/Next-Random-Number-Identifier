@@ -13,12 +13,9 @@ class MockModel:
     """Mock model for testing purposes."""
     def __init__(self, name="MockModel", return_value=None, confidence_value=None):
         self.name = name
-        # Store both patterns and values for backward compatibility with tests
+        # Store patterns instead of fixed arrays
         self.return_pattern = np.array([1.0, 2.0, 3.0]) if return_value is None else return_value
         self.confidence_pattern = np.array([0.9, 0.8, 0.7]) if confidence_value is None else confidence_value
-        # Keep old attribute names for compatibility with existing tests
-        self.return_value = self.return_pattern
-        self.confidence_value = self.confidence_pattern
         self.feature_importance_ = {"feature1": 0.5, "feature2": 0.3, "feature3": 0.2}
         self.fitted = False
     
@@ -110,12 +107,7 @@ class TestEnhancedEnsemble(unittest.TestCase):
         predictions = self.ensemble.predict(self.X)
         
         # With equal weights, predictions should be average of individual predictions
-        # Get predictions from each model for the actual input data
-        expected_predictions = []
-        for model in self.models:
-            expected_predictions.append(model.predict(self.X))
-        
-        expected = np.average(expected_predictions, weights=self.ensemble.weights, axis=0)
+        expected = np.mean([m.return_value for m in self.models], axis=0)
         np.testing.assert_array_almost_equal(predictions, expected)
     
     def test_update_weights(self):
@@ -151,12 +143,8 @@ class TestEnhancedEnsemble(unittest.TestCase):
         """Test prediction confidence estimation."""
         confidences = self.ensemble.estimate_confidence(self.X)
         
-        # Expected confidence is weighted average of individual confidences
-        expected_confidences = []
-        for model in self.models:
-            expected_confidences.append(model.estimate_confidence(self.X))
-        
-        expected = np.average(expected_confidences, weights=self.ensemble.weights, axis=0)
+        # Expected confidence is mean of individual confidences
+        expected = np.mean([m.confidence_value for m in self.models], axis=0)
         np.testing.assert_array_almost_equal(confidences, expected)
     
     def test_feature_importance(self):
@@ -238,12 +226,8 @@ class TestAdaptiveEnsemble(unittest.TestCase):
         """Test confidence estimation."""
         confidences = self.ensemble.estimate_confidence(self.X)
         
-        # Expected confidence is weighted average of individual confidences
-        expected_confidences = []
-        for model in self.models:
-            expected_confidences.append(model.estimate_confidence(self.X))
-        
-        expected = np.average(expected_confidences, weights=self.ensemble.weights, axis=0)
+        # Expected confidence is mean of individual confidences
+        expected = np.mean([model.confidence_value for model in self.models], axis=0)
         np.testing.assert_array_almost_equal(confidences, expected)
 
 
@@ -290,7 +274,6 @@ class TestModelPerformanceTracker(unittest.TestCase):
         self.assertIn("mae_trend", trends)
         self.assertTrue(trends["mse_trend"] < 0)
         self.assertTrue(trends["mae_trend"] < 0)
-
 
 if __name__ == "__main__":
     unittest.main()

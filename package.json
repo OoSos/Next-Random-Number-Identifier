@@ -1,0 +1,23 @@
+{
+  "name": "next-random-number-identifier",
+  "version": "1.0.0",
+  "description": "A tool to identify how random numbers relate to each other",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "node dist/app.js",
+    "build": "tsc",
+    "dev": "tsc && node dist/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "random",
+    "number",
+    "identifier"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^16.18.126",
+    "typescript": "^4.5.4"
+  }
+}
