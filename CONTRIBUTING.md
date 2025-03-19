@@ -49,6 +49,50 @@ This section guides you through submitting an enhancement suggestion, including 
 - Update any relevant documentation
 - The PR should work for Python 3.8, 3.9, and 3.10
 
+## Documentation Maintenance Process
+
+### Updating Documentation for Architectural Changes
+
+When making significant architectural changes, you MUST update the related documentation to ensure it remains accurate. This is a critical part of the development process.
+
+Follow these steps when making architectural changes:
+
+1. **Identify Affected Documentation**:
+   - Review the [Architecture Documentation](docs/Next%20Random%20Number%20Identifier-architecture-documentation.md)
+   - Check if any diagrams need updating (Component Interaction, Data Flow, Prediction Sequence)
+   - Consider if changes affect interfaces documented in code or markdown files
+
+2. **Update Written Documentation**:
+   - Update the Architecture Documentation with your changes
+   - Modify code comments and docstrings to reflect new behavior
+   - Update any Technical Specifications if required
+
+3. **Update Diagrams**:
+   - For diagram changes, edit the `.mermaid` source files in the `docs/diagrams/` directory
+   - Use [Mermaid Live Editor](https://mermaid.live/) to preview changes
+   - After editing the Mermaid source files, generate updated PNG files for compatibility
+   - Ensure both the `.mermaid` and `.png` files are committed together
+
+4. **Documentation Review Checklist**:
+   - [ ] Architecture documentation is up-to-date
+   - [ ] Diagrams accurately reflect the current architecture
+   - [ ] Interface descriptions match implementation
+   - [ ] Examples in documentation work with current code
+   - [ ] Docstrings are complete and accurate
+
+5. **Include Documentation Changes in Pull Requests**:
+   - Documentation updates should be part of the same PR as code changes
+   - Reviewers will specifically check documentation for accuracy
+   - PRs with significant architectural changes that lack documentation updates will not be merged
+
+### Document-Code Synchronization
+
+Always strive to maintain synchronization between code and documentation:
+
+- If you find documentation that is out of date, create an issue or fix it directly
+- When writing new code, document it as you go, not as an afterthought
+- Consider documentation as important as the code itself
+
 ## Development Process
 
 1. Fork the repository
@@ -128,6 +172,8 @@ mypy src
 - Follow Google-style docstrings
 - Update documentation for new features
 - Include type hints in function signatures
+- Always update architectural documentation when making structural changes
+- Maintain diagram consistency with code changes
 
 ## Commit Messages
 
@@ -144,7 +190,11 @@ All submissions require review. We use GitHub pull requests for this purpose.
 3. Make any requested changes
 4. Once approved, a maintainer will merge your changes
 
+For PRs with architectural changes, documentation updates will be specifically reviewed for completeness and accuracy.
+
 ## Resources
 
 - [GitHub Help](https://help.github.com)
 - [Python Testing Documentation](https://docs.python.org/3/library/unittest.html)
+- [Mermaid Diagram Syntax](https://mermaid.js.org/syntax/classDiagram.html)
+- [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)

@@ -1,0 +1,60 @@
+name: Documentation Maintenance Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/models/**'
+      - 'src/features/**'
+      - 'src/utils/**'
+      - 'src/**/*.py'
+      - '!docs/**'
+
+jobs:
+  check-documentation:
+    runs-on: ubuntu-latest
+    name: Check for Documentation Updates
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for Architecture Changes
+        id: architecture-changes
+        run: |
+          # Files that might indicate architectural changes
+          ARCH_FILES="src/models/base_model.py src/models/ensemble.py src/features/feature_engineering.py src/**/base*.py"
+          
+          # Check if any architectural files were modified
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E "$ARCH_FILES" > arch_changes.txt || true
+          
+          if [ -s arch_changes.txt ]; then
+            echo "architecture_changes=true" >> $GITHUB_OUTPUT
+            echo "Changed architectural files:"
+            cat arch_changes.txt
+          else
+            echo "architecture_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Documentation Updates
+        id: doc-updates
+        if: steps.architecture-changes.outputs.architecture_changes == 'true'
+        run: |
+          # Check if docs were updated
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E "docs/" > doc_changes.txt || true
+          
+          if [ -s doc_changes.txt ]; then
+            echo "documentation_updated=true" >> $GITHUB_OUTPUT
+            echo "Documentation files updated:"
+            cat doc_changes.txt
+          else
+            echo "documentation_updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Documentation Reminder
+        if: steps.architecture-changes.outputs.architecture_changes == 'true' && steps.doc-updates.outputs.documentation_updated == 'false'
+        run: |
+          echo "::warning::Potential architectural changes detected but no documentation updates found."
+          echo "::warning::Please review CONTRIBUTING.md for the documentation maintenance process."
+          echo "::warning::Consider updating relevant documentation and diagrams to reflect your changes."
+          # Don't fail the build, just provide a reminder
+          exit 0
