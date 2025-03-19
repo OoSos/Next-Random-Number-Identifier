@@ -74,41 +74,68 @@ jobs:
     - name: Validate diagrams
       id: diagram-validation
       run: |
+        # Check if diagrams directory exists first
+        if [ ! -d "docs/diagrams" ]; then
+          echo "::warning::docs/diagrams directory not found. Skipping diagram validation."
+          echo "MISSING_DIAGRAMS_DIR=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
         cd docs/diagrams
         
-        # Check for .mermaid files without corresponding .png files
-        for file in *.mermaid; do
-          png_file="${file%.mermaid}.png"
-          if [ ! -f "$png_file" ]; then
-            echo "::warning::Missing PNG for $file"
-            echo "MISSING_PNGS=true" >> $GITHUB_OUTPUT
-          fi
-        done
-        
-        # Check for .png files without corresponding .mermaid files (orphaned PNGs)
-        for file in *.png; do
-          mermaid_file="${file%.png}.mermaid"
-          if [ ! -f "$mermaid_file" ]; then
-            echo "::warning::Orphaned PNG without source: $file"
-            echo "ORPHANED_PNGS=true" >> $GITHUB_OUTPUT
-          fi
-        done
-        
-        # Check timestamps to see if .mermaid files are newer than .png files
-        for file in *.mermaid; do
-          png_file="${file%.mermaid}.png"
-          if [ -f "$png_file" ]; then
-            mermaid_time=$(stat -c %Y "$file")
-            png_time=$(stat -c %Y "$png_file")
-            if [ $mermaid_time -gt $png_time ]; then
-              echo "::warning::Diagram $file is newer than its PNG rendering"
-              echo "OUT_OF_SYNC_DIAGRAMS=true" >> $GITHUB_OUTPUT
+        # Handle case where no .mermaid files exist
+        if [ ! "$(ls -A *.mermaid 2>/dev/null)" ]; then
+          echo "No .mermaid files found in diagrams directory"
+        else
+          # Check for .mermaid files without corresponding .png files
+          for file in *.mermaid; do
+            png_file="${file%.mermaid}.png"
+            if [ ! -f "$png_file" ]; then
+              echo "::warning::Missing PNG for $file"
+              echo "MISSING_PNGS=true" >> $GITHUB_OUTPUT
             fi
-          fi
-        done
+          done
+        fi
+        
+        # Handle case where no .png files exist
+        if [ ! "$(ls -A *.png 2>/dev/null)" ]; then
+          echo "No .png files found in diagrams directory"
+        else
+          # Check for .png files without corresponding .mermaid files (orphaned PNGs)
+          for file in *.png; do
+            mermaid_file="${file%.png}.mermaid"
+            if [ ! -f "$mermaid_file" ]; then
+              echo "::warning::Orphaned PNG without source: $file"
+              echo "ORPHANED_PNGS=true" >> $GITHUB_OUTPUT
+            fi
+          done
+        fi
+        
+        # Check timestamps if both file types exist
+        if [ "$(ls -A *.mermaid 2>/dev/null)" ] && [ "$(ls -A *.png 2>/dev/null)" ]; then
+          for file in *.mermaid; do
+            png_file="${file%.mermaid}.png"
+            if [ -f "$png_file" ]; then
+              # Use ls -la to get file timestamps in a more portable way
+              mermaid_time=$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null)
+              png_time=$(stat -c %Y "$png_file" 2>/dev/null || stat -f %m "$png_file" 2>/dev/null)
+              
+              if [ -n "$mermaid_time" ] && [ -n "$png_time" ] && [ "$mermaid_time" -gt "$png_time" ]; then
+                echo "::warning::Diagram $file is newer than its PNG rendering"
+                echo "OUT_OF_SYNC_DIAGRAMS=true" >> $GITHUB_OUTPUT
+              fi
+            fi
+          done
+        fi
     
     - name: Validate code-doc interface consistency
       run: |
+        # Check if docs directory exists
+        if [ ! -d "docs" ]; then
+          echo "::warning::docs directory not found. Skipping code-doc interface validation."
+          exit 0
+        fi
+        
         # Use grep to extract interface method signatures from docs
         grep -r --include="*.md" -E "def [a-zA-Z_]+" docs/ > doc_methods.txt || true
         
@@ -155,7 +182,7 @@ jobs:
         # 1. No architectural changes OR documentation was updated with architectural changes
         # 2. All diagrams are consistent
         if { [ "${{ steps.architecture-changes.outputs.architecture_changes }}" != "true" ] || \
-             [ "${{ steps.doc-updates.outputs.documentation_updated }}" == "true" ]; } && \
+             [ "${{ steps.doc-updates.outputs.documentation_updated }}" == "true"; } && \
            [ "${{ steps.diagram-validation.outputs.MISSING_PNGS }}" != "true" ] && \
            [ "${{ steps.diagram-validation.outputs.ORPHANED_PNGS }}" != "true" ] && \
            [ "${{ steps.diagram-validation.outputs.OUT_OF_SYNC_DIAGRAMS }}" != "true" ]; then
