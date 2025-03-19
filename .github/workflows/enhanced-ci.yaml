@@ -10,6 +10,163 @@ on:
     - cron: '0 0 * * 1'
 
 jobs:
+  validate-documentation:
+    runs-on: ubuntu-latest
+    name: Validate Documentation
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install sphinx sphinx_rtd_theme pytest pytest-checkdocs
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Check for architectural changes
+      id: architecture-changes
+      run: |
+        # Files that might indicate architectural changes
+        ARCH_FILES="src/models/base_model.py src/models/ensemble.py src/features/feature_engineering.py src/**/base*.py"
+        
+        # Check if architectural files were modified
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E "$ARCH_FILES" > arch_changes.txt || true
+        else
+          # For push events, compare with the parent commit
+          git diff --name-only HEAD^ HEAD | grep -E "$ARCH_FILES" > arch_changes.txt || true
+        fi
+        
+        if [ -s arch_changes.txt ]; then
+          echo "architecture_changes=true" >> $GITHUB_OUTPUT
+          echo "Changed architectural files:"
+          cat arch_changes.txt
+        else
+          echo "architecture_changes=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Check documentation updates
+      id: doc-updates
+      if: steps.architecture-changes.outputs.architecture_changes == 'true'
+      run: |
+        # Check if docs were updated
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E "docs/" > doc_changes.txt || true
+        else
+          # For push events, compare with the parent commit
+          git diff --name-only HEAD^ HEAD | grep -E "docs/" > doc_changes.txt || true
+        fi
+        
+        if [ -s doc_changes.txt ]; then
+          echo "documentation_updated=true" >> $GITHUB_OUTPUT
+          echo "Documentation files updated:"
+          cat doc_changes.txt
+        else
+          echo "documentation_updated=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Validate diagrams
+      id: diagram-validation
+      run: |
+        cd docs/diagrams
+        
+        # Check for .mermaid files without corresponding .png files
+        for file in *.mermaid; do
+          png_file="${file%.mermaid}.png"
+          if [ ! -f "$png_file" ]; then
+            echo "::warning::Missing PNG for $file"
+            echo "MISSING_PNGS=true" >> $GITHUB_OUTPUT
+          fi
+        done
+        
+        # Check for .png files without corresponding .mermaid files (orphaned PNGs)
+        for file in *.png; do
+          mermaid_file="${file%.png}.mermaid"
+          if [ ! -f "$mermaid_file" ]; then
+            echo "::warning::Orphaned PNG without source: $file"
+            echo "ORPHANED_PNGS=true" >> $GITHUB_OUTPUT
+          fi
+        done
+        
+        # Check timestamps to see if .mermaid files are newer than .png files
+        for file in *.mermaid; do
+          png_file="${file%.mermaid}.png"
+          if [ -f "$png_file" ]; then
+            mermaid_time=$(stat -c %Y "$file")
+            png_time=$(stat -c %Y "$png_file")
+            if [ $mermaid_time -gt $png_time ]; then
+              echo "::warning::Diagram $file is newer than its PNG rendering"
+              echo "OUT_OF_SYNC_DIAGRAMS=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+        done
+    
+    - name: Validate code-doc interface consistency
+      run: |
+        # Use grep to extract interface method signatures from docs
+        grep -r --include="*.md" -E "def [a-zA-Z_]+" docs/ > doc_methods.txt || true
+        
+        # Check if methods from docs exist in actual code
+        if [ -s doc_methods.txt ]; then
+          echo "Checking documented methods against actual code..."
+          while IFS= read -r line; do
+            # Extract method name
+            method_name=$(echo "$line" | grep -oE "def [a-zA-Z_]+" | cut -d ' ' -f 2)
+            if [ -n "$method_name" ]; then
+              # Check if method exists in code
+              if ! grep -r --include="*.py" -E "def $method_name" src/ > /dev/null; then
+                echo "::warning::Method documented but not found in code: $method_name"
+              fi
+            fi
+          done < doc_methods.txt
+        fi
+    
+    - name: Documentation validation summary
+      run: |
+        echo "Documentation Validation Summary:"
+        
+        if [ "${{ steps.architecture-changes.outputs.architecture_changes }}" == "true" ]; then
+          echo "- Architectural changes detected"
+          
+          if [ "${{ steps.doc-updates.outputs.documentation_updated }}" != "true" ]; then
+            echo "::warning::Architectural changes detected but documentation was not updated"
+          else
+            echo "- Documentation was updated with architectural changes ✓"
+          fi
+        else
+          echo "- No architectural changes detected"
+        fi
+        
+        if [ "${{ steps.diagram-validation.outputs.MISSING_PNGS }}" == "true" ] || \
+           [ "${{ steps.diagram-validation.outputs.ORPHANED_PNGS }}" == "true" ] || \
+           [ "${{ steps.diagram-validation.outputs.OUT_OF_SYNC_DIAGRAMS }}" == "true" ]; then
+          echo "::warning::Diagram inconsistencies detected. Please run maintenance/maintain_diagrams.py"
+        else
+          echo "- All diagrams are consistent ✓"
+        fi
+        
+        # Documentation validation check passed if:
+        # 1. No architectural changes OR documentation was updated with architectural changes
+        # 2. All diagrams are consistent
+        if { [ "${{ steps.architecture-changes.outputs.architecture_changes }}" != "true" ] || \
+             [ "${{ steps.doc-updates.outputs.documentation_updated }}" == "true" ]; } && \
+           [ "${{ steps.diagram-validation.outputs.MISSING_PNGS }}" != "true" ] && \
+           [ "${{ steps.diagram-validation.outputs.ORPHANED_PNGS }}" != "true" ] && \
+           [ "${{ steps.diagram-validation.outputs.OUT_OF_SYNC_DIAGRAMS }}" != "true" ]; then
+          echo "- Documentation validation passed ✓"
+          exit 0
+        else
+          echo "::warning::Documentation validation found issues that should be addressed"
+          # Don't fail the build, just warn
+          exit 0
+        fi
+
   test:
     runs-on: ubuntu-latest
     strategy:

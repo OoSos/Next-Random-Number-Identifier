@@ -8,7 +8,7 @@ The Next Random Number Identifier (NRNI) is a machine learning-based system desi
 
 ### 1. Data Processing Layer
 
-![Data Processing Flow](https://mermaid.ink/img/pako:eNp1kV1rwjAUhv9KyNUGu1j9qJMWb4p0G1PHQNtcSE-saZsk5KQ4Rv_77KzOivNuJ-95zntOTsqYFCRggrG9VlDQI-OMp2BVagRbRZsUhEVbGK3RXhWC63Q-95zt4WDVBBuhzXzOF7kGBh9obwXlbKI-jETGMtQppC-G2XE-KvkG5-R6l-5Q6TBZrzdBHIDJ4pJFjGVZGFNNJF46o2EUuWAMZBKhk2ZRHGaULR4U3GnLthjDrbD4CKlSLjkVrRY9_dKaKZGCS4S7vdVHxH-uLuOF-wnQkKOWPXrx_OX_-OG9b9MvlRRJ_sQWYOHuSFt0aD0jPFrppyFkHy-uDHBNBHvh1KA8o5Ioo_R6ahjpqt7ZWl0hcjQVVp35_K7UfYNIUONagQHFkZrr5qVd-pu3mbtVcPvCeE7qXkfzCCPFLSgOl9w3p8_iRBteGbCGvHmGl3p1oPR-_gPkHbc9)
+![Data Processing Flow](../_static/diagrams/Data_Processing_Flow.png)
 
 The Data Processing Layer is responsible for loading, validating, preprocessing, and enriching raw data:
 
@@ -18,7 +18,7 @@ The Data Processing Layer is responsible for loading, validating, preprocessing,
 
 ### 2. Feature Engineering Layer
 
-![Feature Engineering Flow](https://mermaid.ink/img/pako:eNqFksFqwzAMhl9F-NTB9gI5bWlbaNexQ7vRHYzRYrvzIrwoyyjk3eckaUsHg50s9P8ffEmWb0QaWohE8SuaJLMjyRl_QYvHG1J23vIzDnvjDqGC0Af3E4_BheFfPLmnMJzzRRktDwcSVCLbLjwGz2e9cAgxnvNF29bm7rQpONu2s1N17rFm3mhDhMfpMRqK_Oyl7qlE63Ef6ajQ9gF5CJ6Nk6Hp3TpZ5dHR4Ggmr-oEwVj1HfVCduA1bR1qkV3Grs7zJUz4EQbOL1opmGSOKc9eX5frzZJPpHF9s4Ztsd6sP7br5W5zvFl_bLqsL3L6VdbFquwaEthG0ZOaXKpA5f-RpZi_tTU5iQrWJoWYRSPlbKppwl-KS-KMvtOIafz-A6GKkDM)
+![Feature Engineering Flow](../_static/diagrams/Feature_Engineering_Flow.png)
 
 The Feature Engineering Layer transforms raw data into meaningful features for model training:
 
@@ -28,7 +28,7 @@ The Feature Engineering Layer transforms raw data into meaningful features for m
 
 ### 3. Model Layer
 
-![Model Layer Architecture](https://mermaid.ink/img/pako:eNqVlF1rwjAUhv9KyKUF3UVVp51a8GJMnKijMPZlLonWmCUJORnF-d93Wj-mlA08N-05z3nfk5Pk5CQKkhKB5IkpEtMDkoQewKhUcxJ9rlJDNYtuoDLWwuFaH5iYUZW-vb17n8PBqoksdqZ3JMT0-v-MFU0Ec7RnLaI_sUgXKHN22-j7bXTjrwgmbYYLlLokGfYLhb01CKbGqgK5qdDRwkLbgUj3b0PQK1QKxXLQyJlpNIYIbiJBPjRHNodFhRXZgNE1Mm5Wo-sLWGgXVRZ51EyVUMX92GVy5OfxOA9wRoY0BrpP6Yyu0OTG5h4HXfEqJ0KFUzJVXPm6WKZLUDLskwndlnTPTChXlCYnOKnGa_5OPgdPPrn8Ss7bBW2AyARKzF1EZKC9Vd0kzYtpusvQ-Yf64LpLskxQfnKVZfI0k2dzNzp4_rHBz3V_5-s7bxTTbgEaPGm_NIfm2qyaNd8OP46Qy9GmNnZHrU8T3OHWFWRBCkkVqrY-HcEbdRnYWa0iYm9SFtXVv-E1bVyTZ6HQtm5J8kw1T12zW8n3ZqVuClx_EsqRpmuR_MtL9Q9Ern1H)
+![Model Layer Architecture](../_static/diagrams/Model_Layer_Architecture.png)
 
 The Model Layer contains all predictive models and their integration:
 
@@ -44,7 +44,7 @@ The Model Layer contains all predictive models and their integration:
 
 ### 4. Evaluation and Monitoring Layer
 
-![Evaluation and Monitoring Layer](https://mermaid.ink/img/pako:eNqNkk1rwzAMhv-K8amDbS7JacnWwA4bHbaOHcYOxlabjXkRXlxGCfnvc9J0H4UOduP3eV9ZlnQhxlBCJJqfSRN7pMQxUjJOKvVByvPwOUm_pPlh-OsXzYBF6KbQhqwOB-TUb7vgKPF9sCz_V5MHZaRO_Rx6DlYJmH4e8Sy0aQKy4HlnDfZ11xxJ5UHRoE5BnSkEa-Q3yZlswGuwtSsqm0-vrVk3XhfAcQUNZ1e2V_7KT9YXUnVcJbDRe6WPmjrM65c45_GDIEZIAqZXNmRGlkPrWnQWONZgR1h5a7gfwMrEQlP1O73wuXddlZvN-z5fF-V-V-SR3Kw-1vkm36Tfm2KXR12W_yqL_LN8bNBFutvk-a7HbYHCNnI98aCTKjfj_zLb4NwtrU9OoIR1TCVmwWgyMdU34S-OD3GGuqOI-bjdAZKqkLs)
+![Evaluation and Monitoring Layer](..//_static/diagrams/Evaluation_and_Monitoring_Layer.png)
 
 The Evaluation and Monitoring Layer tracks model performance and detects drift:
 
@@ -55,7 +55,7 @@ The Evaluation and Monitoring Layer tracks model performance and detects drift:
 
 ### 5. User Interface Layer
 
-![User Interface Layer](https://mermaid.ink/img/pako:eNp9kctqwzAQRX9l0KqFpgsnr5K4gS4KpU2hkOKFEQ8PxK9hKdQQ8u-VYztOIxrtRnPn3JH0MBGlYIZEsR-0ki8kGGMVOU_J0dNcUL5T1c6rg17DY7uuKoSX_ebf8M2ZvnuZbq90vZM5SG3b993gf1-Mxm4X2FJJ7-T_fQwllccFPp7s1MaWiA_BKaAQSgvvYPeojhZnQdFQXqBOVILT8pvUQrbgNZztKr3J38vr7iyDwooZWHLRjbm2-Ij4SOlSUDbgVw5KFhIszXG_5nyzC_oG1CiPWBnJ1ICKw8Z9Oe2JpAbqHUQTBufBd49PCM1AYN3slJkz4GZpPGYp5k33zSfD8ggH7Ht0sojkEmPPujqRn4s34oxRTSlUH-uLIp1G0w)
+![User Interface Layer](../_static/diagrams/User_Interface_Layer.png)
 
 The User Interface Layer provides interaction points for users:
 
@@ -180,3 +180,31 @@ The system is designed with several extension points:
 3. **Ensemble Methods**: Additional combination strategies can be implemented in `EnhancedEnsemble`
 4. **Data Sources**: The `EnhancedDataLoader` can be extended to support additional file formats
 5. **Visualization**: New visualization types can be added to the visualization module
+
+## Interactive Diagrams
+
+The architecture diagrams in this documentation are available in Mermaid format for interactive viewing and modification:
+
+- Diagrams are stored in both `.mermaid` and `.png` formats in the `docs/diagrams/` directory
+- For interactive viewing and editing:
+  - **GitHub Rendering**: GitHub now supports Mermaid diagrams directly in markdown files
+  - **Mermaid Live Editor**: Use [Mermaid Live Editor](https://mermaid.live/) for interactive viewing and editing
+  - **VS Code Extensions**: Consider using Mermaid preview extensions in VS Code for local development
+
+To embed a Mermaid diagram directly in GitHub markdown:
+
+```mermaid
+graph TD
+    A[Data Input] --> B[EnhancedDataLoader]
+    B --> C[DataSchemaValidator]
+    C --> D[Feature Engineering]
+    D --> E[Model Training]
+    E --> F[Ensemble Integration]
+    F --> G[Prediction]
+```
+
+This approach allows for:
+- Interactive exploration of diagrams
+- Easy updates when architecture changes
+- Better collaboration through version-controlled diagram code
+- Consistency between documentation and visual representations

@@ -88,6 +88,9 @@ intersphinx_mapping = {
     'sklearn': ('https://scikit-learn.org/stable', None),
 }
 
+# Include rendered versions of diagrams for web documentation
+html_extra_path = ['_static/diagrams']
+
 # Copy diagrams to build directory during build
 def setup(app):
     app.add_css_file('custom.css')

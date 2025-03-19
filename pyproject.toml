@@ -1,5 +1,9 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [tool.black]
-line-length = 100
+line-length = 88
 target-version = ["py38"]
 include = "\.pyi?$"
 exclude = '''
@@ -18,12 +22,12 @@ exclude = '''
 
 [tool.isort]
 profile = "black"
+line_length = 88
 multi_line_output = 3
 
 [tool.pyright]
 include = [
-    "src",
-    "src/visualization"
+    "src"
 ]
 exclude = [
     "**/node_modules",
@@ -53,70 +57,56 @@ reportOptionalOperand = "warning"
 
 [project]
 name = "next_random_number_identifier"
-version = "2.0.0"
-description = "A machine learning-based system for analyzing and forecasting random number sequences"
+version = "0.1.0"
+description = "A tool to identify patterns in random number sequences"
 readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
 authors = [
-    { name = "OoSos", email = "author@example.com" }
+    {name = "Project Contributors"}
 ]
-license = { file = "LICENSE" }
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Operating System :: OS Independent"
+dependencies = [
+    "numpy>=1.20.0",
+    "pandas>=1.3.0",
+    "scikit-learn>=0.24.0",
+    "matplotlib>=3.4.0",
+    "torch>=1.9.0",
+    "xgboost"
 ]
-keywords = ["random numbers", "prediction", "machine learning", "statistical analysis"]
-
-[project.urls]
-homepage = "https://github.com/OoSos/next-random-number-identifier"
-
-[project.dependencies]
-pandas = "*"
-numpy = "*"
-scikit-learn = "*"
-xgboost = "*"
-matplotlib = "*"
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "isort",
-    "flake8",
-    "mypy",
-    "pytest",
-    "pytest-cov",
-    "sphinx",
-    "sphinx_rtd_theme",
-    "tox",
-    "twine"
+    "pytest>=6.0",
+    "black>=21.5b2",
+    "isort>=5.9.1",
+    "flake8>=3.9.2",
+    "mypy>=0.812",
+]
+test = [
+    "pytest-cov"
 ]
 doc = [
     "sphinx",
     "sphinx_rtd_theme"
 ]
-test = [
-    "pytest",
-    "pytest-cov",
-    "pytest-benchmark"
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10"
 ]
 
-[project.scripts]
-rnni = "src.cli:run_cli"
+[tool.pytest]
+testpaths = ["tests"]
 
 [tool.flake8]
 max-line-length = 100
 exclude = [".git", "__pycache__", "docs/conf.py", "old", "build", "dist"]
 ignore = ["E203", "W503"]
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
 
 [tool.mypy]
 python_version = "3.8"
