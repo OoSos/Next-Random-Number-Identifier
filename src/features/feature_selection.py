@@ -376,3 +376,35 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
                 for method, features in method_top_features.items()
             }
         }
+    
+    """
+    Feature selection utility for NRNI.
+    Provides methods for selecting the most relevant features.
+    """
+    def __init__(self, method: str = 'correlation', threshold: float = 0.1) -> None:
+        """
+        Initialize the FeatureSelector.
+        
+        Args:
+            method (str): Feature selection method ('correlation', 'model', etc.)
+            threshold (float): Threshold for feature selection
+        """
+        self.method = method
+        self.threshold = threshold
+
+    def select(self, df: pd.DataFrame, target: Optional[str] = None) -> pd.DataFrame:
+        """
+        Select features from the DataFrame based on the chosen method.
+        
+        Args:
+            df (pd.DataFrame): Input data
+            target (Optional[str]): Target column for feature selection
+        Returns:
+            pd.DataFrame: DataFrame with selected features
+        """
+        if self.method == 'correlation' and target and target in df.columns:
+            corr = df.corr(numeric_only=True)[target].abs()
+            selected = corr[corr > self.threshold].index.tolist()
+            return df[selected]
+        # Add other selection methods as needed
+        return df

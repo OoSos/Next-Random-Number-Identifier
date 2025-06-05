@@ -6,13 +6,21 @@ from typing import Dict, Any
 class BaseModel(ABC):
     """
     Abstract base class for all prediction models.
+    All models must implement the core interface for fit, predict, feature importance, and confidence estimation.
     """
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, **kwargs) -> None:
+        """
+        Initialize the base model.
+        
+        Args:
+            name (str): Name of the model
+            **kwargs: Additional model parameters
+        """
         self.name = name
         self.model = None
         self.params = kwargs
-        self.feature_importance_ = None
-        
+        self.feature_importance_: Any = None
+    
     @abstractmethod
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'BaseModel':
         """
@@ -21,9 +29,8 @@ class BaseModel(ABC):
         Args:
             X (pd.DataFrame): Training features
             y (pd.Series): Target values
-            
         Returns:
-            self: The fitted model instance
+            BaseModel: The fitted model instance
         """
         pass
     
@@ -34,7 +41,6 @@ class BaseModel(ABC):
         
         Args:
             X (pd.DataFrame): Features to make predictions for
-            
         Returns:
             np.ndarray: Predicted values
         """
@@ -57,7 +63,6 @@ class BaseModel(ABC):
         
         Args:
             X (pd.DataFrame): Features to estimate confidence for
-            
         Returns:
             np.ndarray: Confidence estimates
         """
@@ -78,13 +83,17 @@ class BaseModel(ABC):
         
         Args:
             **params: Model parameters to set
-            
         Returns:
-            self: The model instance with updated parameters
+            BaseModel: The model instance with updated parameters
         """
         self.params.update(params)
         return self
     
     def __str__(self) -> str:
-        """String representation of the model."""
+        """
+        String representation of the model.
+        
+        Returns:
+            str: Model name and type
+        """
         return f"{self.name} Model"

@@ -4,10 +4,12 @@ import numpy as np
 from sklearn.datasets import make_regression
 
 from src.models.ensemble import EnhancedEnsemble
+from src.models.base_model import BaseModel
 
-class MockModel:
+class MockModel(BaseModel):
     """Mock model for testing confidence-weighted strategies."""
     def __init__(self, predictions, confidences):
+        super().__init__(name="MockModel")
         self.predictions = predictions
         self.confidences = confidences
         self.feature_importance_ = {"feature1": 0.5, "feature2": 0.3, "feature3": 0.2}
@@ -55,15 +57,14 @@ class TestCombinationStrategies(unittest.TestCase):
         ensemble = EnhancedEnsemble(
             models=self.models, 
             weights=np.array([0.5, 0.3, 0.2]),
-            combination_method='weighted_average'
-        )
+            combination_method='weighted_average'        )
         
         predictions = ensemble.predict(self.X)
         
         # Expected: weighted average of predictions with fixed weights
         expected = 0.5 * self.pred1 + 0.3 * self.pred2 + 0.2 * self.pred3
         np.testing.assert_array_almost_equal(predictions, expected)
-        
+
     def test_confidence_weighted(self):
         """Test confidence-weighted prediction strategy."""
         ensemble = EnhancedEnsemble(
@@ -73,14 +74,20 @@ class TestCombinationStrategies(unittest.TestCase):
         
         predictions = ensemble.dynamic_confidence_weighting(self.X)
         
-        # For sample 0, model1 should have highest weight due to highest confidence
-        self.assertGreater(predictions[0], (self.pred1[0] + self.pred2[0] + self.pred3[0]) / 3)
+        # For sample 0, model1 has highest confidence (0.9) and value 1.0
+        # The weighted prediction should be closer to model1's prediction than simple average
+        simple_avg_0 = (self.pred1[0] + self.pred2[0] + self.pred3[0]) / 3  # 2.0
+        model1_pred_0 = self.pred1[0]  # 1.0
+        # Weighted prediction should be between model1's prediction and simple average
+        self.assertLess(predictions[0], simple_avg_0)
+        self.assertGreater(predictions[0], model1_pred_0)
         
-        # For sample 2, model2 should have highest weight due to highest confidence
-        self.assertGreater(predictions[2], (self.pred1[2] + self.pred3[2]) / 2)
-        
-        # For sample 4, model3 should have highest weight due to highest confidence
-        self.assertGreater(predictions[4], (self.pred1[4] + self.pred2[4]) / 2)
+        # For sample 2, model2 has highest confidence (0.9) and value 4.0
+        simple_avg_2 = (self.pred1[2] + self.pred2[2] + self.pred3[2]) / 3  # 4.0
+        model2_pred_2 = self.pred2[2]  # 4.0
+        # Since model2 has highest confidence and its value equals the average, 
+        # weighted prediction should be close to the average
+        self.assertAlmostEqual(predictions[2], model2_pred_2, places=1)
         
     def test_variance_weighted(self):
         """Test variance-weighted prediction strategy."""

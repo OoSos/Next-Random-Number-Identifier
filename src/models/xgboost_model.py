@@ -2,64 +2,37 @@ from typing import List, Tuple, Dict, Optional, Union, Any
 import numpy as np
 import pandas as pd
 from numpy.typing import ArrayLike
-from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.preprocessing import LabelEncoder
 from src.models.base_model import BaseModel
 
 class XGBoostModel(BaseModel):
     """
-    XGBoost implementation for random number prediction.
-    Inherits from BaseModel and implements classification-specific methods.
+    XGBoost model for classification and feature importance analysis.
     """
-    
-    def __init__(self, n_estimators: int = 100, learning_rate: float = 0.1, random_state: int = 42, **kwargs):
+    def __init__(self, n_estimators: int = 100, max_depth: int = 3, learning_rate: float = 0.1, random_state: int = 42, **kwargs) -> None:
         """
-        Initialize the XGBoost model.
+        Initialize the XGBoostModel.
         
         Args:
-            n_estimators: Number of boosting rounds
-            learning_rate: Boosting learning rate
-            random_state: Random seed for reproducibility
-            **kwargs: Additional parameters for XGBClassifier
+            n_estimators (int): Number of boosting rounds
+            max_depth (int): Maximum tree depth
+            learning_rate (float): Boosting learning rate
+            random_state (int): Random seed
+            **kwargs: Additional model parameters
         """
         super().__init__(name="XGBoost")
-        self.params.update({
+        from xgboost import XGBClassifier
+        self.params = {
             'n_estimators': n_estimators,
+            'max_depth': max_depth,
             'learning_rate': learning_rate,
-            'max_depth': 6,
-            'min_child_weight': 1,
-            'subsample': 0.8,
-            'colsample_bytree': 0.8,
-            'objective': 'multi:softprob',
-            'random_state': random_state,
-            **kwargs
-        })
+            'random_state': random_state
+        }
+        self.params.update({k: v for k, v in kwargs.items() if v is not None})
         self.model = XGBClassifier(**self.params)
-        self.feature_importance_ = None
-        self.performance_metrics: Dict[str, float] = {}
-
-    def preprocess(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> Tuple[pd.DataFrame, Optional[pd.Series]]: 
-        """
-        Preprocess input data for XGBoost model.
-        
-        Args:
-            X (pd.DataFrame): Input features
-            y (pd.Series, optional): Target variable
-            
-        Returns:
-            Tuple[pd.DataFrame, Optional[pd.Series]]: Preprocessed features and target
-        """
-        # Ensure numerical features
-        X = X.select_dtypes(include=[np.number])
-        
-        # Handle missing values
-        X = X.fillna(X.mean())
-        
-        # Adjust target for classification (0-based)
-        if y is not None:
-            y = y - 1 if y.min() > 0 else y.copy()
-            
-        return X, y
+        self.feature_importance_: Optional[Dict[str, float]] = None
+        self.label_encoder = None
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'XGBoostModel':
         """
@@ -67,83 +40,34 @@ class XGBoostModel(BaseModel):
         
         Args:
             X (pd.DataFrame): Training features
-            y (pd.Series): Training target
-            
+            y (pd.Series): Target values
         Returns:
-            self: The fitted model instance
+            XGBoostModel: The fitted model instance
         """
-        X_processed, y_processed = self.preprocess(X, y)
-        self.model.fit(X_processed, y_processed)
-        
-        # Calculate feature importance
-        self.feature_importance_ = dict(zip(X_processed.columns, self.model.feature_importances_))
+        from sklearn.preprocessing import LabelEncoder
+        self.label_encoder = LabelEncoder()
+        y_encoded = self.label_encoder.fit_transform(y)
+        self.model.fit(X, y_encoded)
+        self.feature_importance_ = dict(zip(X.columns, self.model.feature_importances_))
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
-        Make predictions using the trained model.
+        Make predictions using the fitted XGBoost model.
         
         Args:
-            X (pd.DataFrame): Input features
-            
+            X (pd.DataFrame): Features to make predictions for
         Returns:
-            np.ndarray: Predicted values (adjusted back to original scale)
+            np.ndarray: Predicted values (decoded to original labels)
         """
-        if self.model is None:
-            raise ValueError("Model must be fitted before making predictions")
-            
-        X_processed, _ = self.preprocess(X)
-        predictions = self.model.predict(X_processed)
-        return predictions + 1  # Adjust back to original scale
-
-    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
-        """
-        Get probability predictions for each class.
-        
-        Args:
-            X (pd.DataFrame): Input features
-            
-        Returns:
-            np.ndarray: Probability predictions for each class
-        """
-        if self.model is None:
-            raise ValueError("Model must be fitted before making predictions")
-            
-        X_processed, _ = self.preprocess(X)
-        return self.model.predict_proba(X_processed)
-
-    def evaluate(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, float]:
-        """
-        Evaluate model performance using multiple metrics.
-        
-        Args:
-            X (pd.DataFrame): Test features
-            y (pd.Series): True target values
-            
-        Returns:
-            Dict[str, float]: Dictionary of performance metrics
-        """
-        if self.model is None:
-            raise ValueError("Model must be fitted before evaluation")
-            
-        X_processed, y_processed = self.preprocess(X, y)
-        y_pred = self.model.predict(X_processed)
-        
-        # Create metrics dictionary
-        metrics_dict = {
-            'accuracy': accuracy_score(y_processed, y_pred),
-            'precision': precision_score(y_processed, y_pred, average='weighted'),
-            'recall': recall_score(y_processed, y_pred, average='weighted'),
-            'f1': f1_score(y_processed, y_pred, average='weighted')
-        }
-        
-        # Update performance metrics
-        self.performance_metrics = metrics_dict
-        return metrics_dict
+        y_pred = self.model.predict(X)
+        if self.label_encoder is not None:
+            return self.label_encoder.inverse_transform(y_pred)
+        return y_pred
 
     def get_feature_importance(self) -> Dict[str, float]:
         """
-        Get feature importance scores.
+        Get feature importance scores from the XGBoost model.
         
         Returns:
             Dict[str, float]: Dictionary mapping feature names to importance scores
@@ -152,45 +76,12 @@ class XGBoostModel(BaseModel):
             raise ValueError("Model must be fitted before getting feature importance")
         return self.feature_importance_
 
-    def get_model_params(self) -> Dict[str, Any]:
-        """
-        Get current model parameters.
-        
-        Returns:
-            Dict[str, Any]: Current model parameters
-        """
-        return self.model.get_params()
-
-    def optimize_hyperparameters(self, X: pd.DataFrame, y: pd.Series, param_grid: Dict[str, List[Any]]) -> Dict[str, Any]:
-        """
-        Optimize hyperparameters using grid search.
-        
-        Args:
-            X (pd.DataFrame): Training features
-            y (pd.Series): Training target
-            param_grid (Dict[str, List[Any]]): Grid of hyperparameters to search
-            
-        Returns:
-            Dict[str, Any]: Best hyperparameters
-        """
-        from sklearn.model_selection import GridSearchCV
-        
-        grid_search = GridSearchCV(self.model, param_grid, cv=5, scoring='accuracy')
-        grid_search.fit(X, y)
-        
-        self.params.update(grid_search.best_params_)
-        self.model = XGBClassifier(**self.params)
-        self.fit(X, y)
-        
-        return grid_search.best_params_
-
     def estimate_confidence(self, X: pd.DataFrame) -> np.ndarray:
         """
-        Estimate prediction confidence using the predict_proba method.
+        Estimate prediction confidence using the XGBoost model.
         
         Args:
             X (pd.DataFrame): Features to estimate confidence for
-            
         Returns:
             np.ndarray: Confidence estimates for each prediction
         """
