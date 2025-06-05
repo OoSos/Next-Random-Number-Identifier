@@ -15,17 +15,17 @@ The ensemble model integrates predictions from:
 - Markov Chain Analysis
 """
 
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import logging
 from sklearn.base import BaseEstimator, RegressorMixin
-from .base_model import BaseModel
-from .random_forest import RandomForestModel
-from .markov_chain import MarkovChain, VariableOrderMarkovChain
+from src.models.base_model import BaseModel
+from src.models.random_forest import RandomForestModel
+from src.models.markov_chain import MarkovChain
 try:
-    from .xgboost_model import XGBoostModel
+    from src.models.xgboost_model import XGBoostModel
     XGBOOST_AVAILABLE = True
 except ImportError:
     XGBOOST_AVAILABLE = False
@@ -34,12 +34,12 @@ from sklearn.metrics import mean_squared_error
 class ModelPerformanceTracker:
     """Tracks and analyzes model performance over time."""
     
-    def __init__(self, window_size: int = 10):
+    def __init__(self, window_size: int = 10) -> None:
         """
         Initialize the performance tracker.
         
         Args:
-            window_size: Number of performance records to keep per model
+            window_size (int): Number of performance records to keep per model
         """
         self.window_size = window_size
         self.performance_history: Dict[str, List[Dict[str, Any]]] = {}
@@ -50,9 +50,9 @@ class ModelPerformanceTracker:
         Update performance metrics for a specific model.
         
         Args:
-            model_name: Name of the model
-            metrics: Dictionary of performance metrics
-            timestamp: Optional timestamp for the metrics (default: now)
+            model_name (str): Name of the model
+            metrics (Dict[str, float]): Dictionary of performance metrics
+            timestamp (Optional[datetime]): Optional timestamp for the metrics (default: now)
         """
         if timestamp is None:
             timestamp = datetime.now()
@@ -74,8 +74,8 @@ class ModelPerformanceTracker:
         Set baseline metrics for a model for future comparison.
         
         Args:
-            model_name: Name of the model
-            metrics: Dictionary of baseline performance metrics
+            model_name (str): Name of the model
+            metrics (Dict[str, float]): Dictionary of baseline performance metrics
         """
         self.baseline_metrics[model_name] = metrics.copy()
 
@@ -84,10 +84,10 @@ class ModelPerformanceTracker:
         Calculate performance trends for a model.
         
         Args:
-            model_name: Name of the model
+            model_name (str): Name of the model
             
         Returns:
-            Dictionary with trend metrics
+            Dict[str, float]: Dictionary with trend metrics
         """
         if model_name not in self.performance_history:
             return {}
@@ -124,12 +124,12 @@ class ModelPerformanceTracker:
         Detect if model performance has drifted significantly from baseline.
         
         Args:
-            model_name: Name of the model
-            current_metrics: Current performance metrics
-            threshold: Threshold for significant drift (proportional change)
+            model_name (str): Name of the model
+            current_metrics (Dict[str, float]): Current performance metrics
+            threshold (float): Threshold for significant drift (proportional change)
             
         Returns:
-            Dictionary with drift detection results
+            Dict[str, Any]: Dictionary with drift detection results
         """
         if model_name not in self.baseline_metrics:
             return {'drift_detected': False, 'reason': 'No baseline metrics available'}
@@ -167,7 +167,7 @@ class ModelPerformanceTracker:
         Get a summary of all tracked model performance.
         
         Returns:
-            Dictionary with performance summary
+            Dict[str, Any]: Dictionary with performance summary
         """
         summary = {
             'models': list(self.performance_history.keys()),
@@ -199,7 +199,7 @@ class ModelPerformanceTracker:
         Save the performance history to a CSV file.
         
         Args:
-            filepath: Path to the CSV file
+            filepath (str): Path to the CSV file
         """
         records = []
         for model_name, history in self.performance_history.items():
@@ -232,20 +232,25 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         min_weight: float = 0.1,
         combination_method: str = 'weighted_average',
         weight_update_strategy: str = 'performance',
-        tracking_metrics: List[str] = ['mse', 'mae', 'accuracy']
-    ):
+        tracking_metrics: List[str] = ['mse', 'mae', 'accuracy'],
+        require_xgboost: bool = False
+    ) -> None:
         """
-        Initialize the enhanced ensemble.
+        Initialize the EnhancedEnsemble.
         
         Args:
-            models: List of models to include in the ensemble (defaults to RF, XGB, Markov)
-            weights: Initial weights for models (defaults to equal weights)
-            performance_window: Window size for performance tracking
-            min_weight: Minimum weight for any model
-            combination_method: Method to combine model predictions
-            weight_update_strategy: Strategy for updating weights ('performance', 'accuracy', 'equal')
-            tracking_metrics: Metrics to track for performance monitoring
+            models (Optional[List[BaseModel]]): List of base models to include in the ensemble
+            weights (Optional[np.ndarray]): Optional array of model weights
+            performance_window (int): Window size for performance tracking
+            min_weight (float): Minimum weight for any model
+            combination_method (str): Method to combine model predictions
+            weight_update_strategy (str): Strategy for updating weights ('performance', 'accuracy', 'equal')
+            tracking_metrics (List[str]): Metrics to track for performance monitoring
+            require_xgboost (bool): If True, raise an error if XGBoost is not available
         """
+        if require_xgboost and not XGBOOST_AVAILABLE:
+            raise ImportError("XGBoost is required for this ensemble configuration, but is not installed. Please install xgboost or set require_xgboost=False.")
+        
         self.models = models or self._initialize_default_models()
         self.weights = self._initialize_weights(weights, len(self.models))
         self.min_weight = min_weight
@@ -259,8 +264,13 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         logging.info(f"Initialized EnhancedEnsemble with {len(self.models)} models")
 
     def _initialize_default_models(self) -> List[BaseModel]:
-        """Initialize the default set of models."""
-        default_models = [
+        """
+        Initialize the default set of models.
+        
+        Returns:
+            List[BaseModel]: List of default model instances
+        """
+        default_models: List[BaseModel] = [
             RandomForestModel(n_estimators=100),
             MarkovChain(order=2)
         ]
@@ -271,7 +281,15 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         return default_models
 
     def _initialize_weights(self, weights: Optional[np.ndarray], n_models: int) -> np.ndarray:
-        """Initialize model weights."""
+        """
+        Initialize model weights.
+        
+        Args:
+            weights (Optional[np.ndarray]): Initial weights
+            n_models (int): Number of models
+        Returns:
+            np.ndarray: Normalized weights array
+        """
         if weights is None:
             return np.ones(n_models) / n_models
         
@@ -285,8 +303,10 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Fit all models in the ensemble and initialize performance tracking.
         
         Args:
-            X: Training features
-            y: Target values
+            X (pd.DataFrame): Training features
+            y (pd.Series): Target values
+        Returns:
+            EnhancedEnsemble: Self
         """
         for i, model in enumerate(self.models):
             try:
@@ -320,10 +340,9 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Generate ensemble predictions using the selected combination method.
         
         Args:
-            X: Input features
-            
+            X (pd.DataFrame): Input features
         Returns:
-            Array of predicted values
+            np.ndarray: Array of predicted values
         """
         if self.combination_method == 'weighted_average':
             return self._weighted_average_prediction(X)
@@ -342,10 +361,9 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Generate ensemble predictions using weighted average.
         
         Args:
-            X: Input features
-            
+            X (pd.DataFrame): Input features
         Returns:
-            Array of predicted values
+            np.ndarray: Array of predicted values
         """
         predictions = []
         
@@ -367,7 +385,7 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Update model weights based on recent performance.
         
         Args:
-            performance_metrics: Dictionary of performance metrics for each model
+            performance_metrics (Dict[str, Dict[str, float]]): Dictionary of performance metrics for each model
         """
         # Calculate new weights based on exponential moving average of performance
         new_weights = np.array([
@@ -390,28 +408,29 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Perform Bayesian model averaging for predictions.
         
         Args:
-            X: Input features
-        
+            X (pd.DataFrame): Input features
         Returns:
-            Array of predicted values
+            np.ndarray: Array of predicted values
         """
         predictions = np.array([model.predict(X) for model in self.models])
         weights = self.weights / np.sum(self.weights)
         return np.dot(weights, predictions)
 
-    def model_stacking(self, X: pd.DataFrame, meta_learner: BaseEstimator) -> np.ndarray:
+    def model_stacking(self, X: pd.DataFrame, y: pd.Series, meta_learner: Any) -> np.ndarray:
         """
         Perform model stacking with a meta-learner.
         
         Args:
-            X: Input features
-            meta_learner: Meta-learner model
-        
+            X (pd.DataFrame): Input features
+            y (pd.Series): Training targets for meta-learner
+            meta_learner (Any): Meta-learner model implementing fit and predict
         Returns:
-            Array of predicted values
+            np.ndarray: Array of predicted values
         """
-        base_predictions = np.column_stack([model.predict(X) for model in self.models])
-        meta_learner.fit(base_predictions, X)
+        base_predictions = np.column_stack([
+            model.predict(X) for model in self.models
+        ])
+        meta_learner.fit(base_predictions, y)
         return meta_learner.predict(base_predictions)
 
     def dynamic_confidence_weighting(self, X: pd.DataFrame) -> np.ndarray:
@@ -422,10 +441,9 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Models with higher confidence for a specific sample will have more influence.
         
         Args:
-            X: Input features
-        
+            X (pd.DataFrame): Input features
         Returns:
-            Array of predicted values
+            np.ndarray: Array of predicted values
         """
         predictions = np.array([model.predict(X) for model in self.models])
         
@@ -462,10 +480,9 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         This approach gives more weight to models with lower prediction variance/uncertainty.
         
         Args:
-            X: Input features
-        
+            X (pd.DataFrame): Input features
         Returns:
-            Array of predicted values
+            np.ndarray: Array of predicted values
         """
         predictions = np.array([model.predict(X) for model in self.models])
         
@@ -500,7 +517,6 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         
         Args:
             X (pd.DataFrame): Features to estimate confidence for
-            
         Returns:
             np.ndarray: Confidence estimates for each prediction
         """
@@ -528,20 +544,25 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
             return np.ones(X.shape[0]) * 0.5
 
     def _calculate_metrics(self, y_true: pd.Series, y_pred: np.ndarray) -> Dict[str, float]:
-        """Calculate performance metrics."""
-        metrics = {
-            'mse': float(np.mean((y_true - y_pred) ** 2)),  # Explicit float conversion
-            'mae': float(np.mean(np.abs(y_true - y_pred)))  # Explicit float conversion
-        }
+        """
+        Calculate performance metrics.
         
-        # Add accuracy if in tracking metrics
-        if 'accuracy' in self.tracking_metrics:
-            metrics['accuracy'] = float((y_true.values == y_pred).mean())
-            
+        Args:
+            y_true (pd.Series): True target values
+            y_pred (np.ndarray): Predicted values
+        Returns:
+            Dict[str, float]: Calculated metrics
+        """
+        metrics: Dict[str, float] = {}
+        metrics['mse'] = float(np.mean((y_true.values - y_pred) ** 2))
+        metrics['mae'] = float(np.mean(np.abs(y_true.values - y_pred)))
+        metrics['accuracy'] = float(np.mean(y_true.values == y_pred))
         return metrics
 
     def _update_feature_importance(self) -> None:
-        """Update ensemble feature importance by combining individual model importances."""
+        """
+        Update ensemble feature importance by combining individual model importances.
+        """
         importance_dict: Dict[str, float] = {}
         
         for model, weight in zip(self.models, self.weights):
@@ -567,7 +588,12 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         self.feature_importance_ = importance_dict
 
     def get_model_contributions(self) -> Dict[str, float]:
-        """Calculate the contribution of each model to the ensemble."""
+        """
+        Calculate the contribution of each model to the ensemble.
+        
+        Returns:
+            Dict[str, float]: Model name to weight mapping
+        """
         contributions: Dict[str, float] = {}
         
         for i, (model, weight) in enumerate(zip(self.models, self.weights)):
@@ -581,9 +607,14 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         
         return contributions
 
-    def get_performance_summary(self) -> Dict[str, Dict[str, Any]]:
-        """Get a summary of model performance and ensemble metrics."""
-        summary = {
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """
+        Get a summary of model performance and ensemble metrics.
+        
+        Returns:
+            Dict[str, Any]: Summary including weights and trends
+        """
+        summary: Dict[str, Any] = {
             'model_weights': self.get_model_contributions(),
             'performance_trends': {},
             'combination_method': self.combination_method
@@ -603,6 +634,8 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         
         Returns:
             Dict[str, float]: Dictionary mapping feature names to importance scores
+        Raises:
+            ValueError: If ensemble is not fitted
         """
         if self.feature_importance_ is None:
             raise ValueError("Ensemble must be fitted before getting feature importance")
@@ -614,11 +647,10 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Evaluate ensemble performance on test data.
         
         Args:
-            X: Test features
-            y: Target values
-            
+            X (pd.DataFrame): Test features
+            y (pd.Series): Target values
         Returns:
-            Dictionary of performance metrics
+            Dict[str, float]: Dictionary of performance metrics
         """
         predictions = self.predict(X)
         return self._calculate_metrics(y, predictions)
@@ -628,11 +660,10 @@ class EnhancedEnsemble(BaseEstimator, RegressorMixin):
         Check for model drift in component models and ensemble.
         
         Args:
-            X: Current data features
-            y: Current target values
-            
+            X (pd.DataFrame): Current data features
+            y (pd.Series): Current target values
         Returns:
-            Dictionary with drift detection results
+            Dict[str, Any]: Dictionary with drift detection results
         """
         drift_results = {}
         

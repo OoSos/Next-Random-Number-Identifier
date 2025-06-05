@@ -1,9 +1,9 @@
-from typing import List, Dict, Optional, Union, Set, Tuple
+from typing import List, Dict, Optional, Union, Set, Tuple, Any
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from scipy import stats
-from ..utils import standardize_column_names  # Import the centralized function
+from src.utils import standardize_column_names  # Use absolute import for consistency
 
 class FeatureEngineer(BaseEstimator, TransformerMixin):
     """
@@ -751,6 +751,54 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         for group in self.feature_groups.values():
             all_features.extend(group)
         return all_features
+
+    def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Generate new features from the input DataFrame.
+        
+        Args:
+            df (pd.DataFrame): Input data
+        Returns:
+            pd.DataFrame: DataFrame with new features added
+        """
+        # Example: add rolling mean and lag features
+        df = df.copy()
+        if 'Number' in df.columns:
+            df['number_rolling_mean_3'] = df['Number'].rolling(window=3, min_periods=1).mean()
+            df['number_lag_1'] = df['Number'].shift(1)
+        return df
+
+    def select_features(self, df: pd.DataFrame, target: Optional[str] = None) -> pd.DataFrame:
+        """
+        Select relevant features using correlation or model-based selection.
+        
+        Args:
+            df (pd.DataFrame): Input data
+            target (Optional[str]): Target column for feature selection
+        Returns:
+            pd.DataFrame: DataFrame with selected features
+        """
+        # Example: select features with correlation above threshold
+        if target and target in df.columns:
+            corr = df.corr(numeric_only=True)[target].abs()
+            selected = corr[corr > 0.1].index.tolist()
+            return df[selected]
+        return df
+
+    def transform_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Apply transformations to features (e.g., scaling, encoding).
+        
+        Args:
+            df (pd.DataFrame): Input data
+        Returns:
+            pd.DataFrame: Transformed DataFrame
+        """
+        # Example: fill missing values and standardize numeric columns
+        df = df.copy()
+        for col in df.select_dtypes(include=[np.number]).columns:
+            df[col] = (df[col] - df[col].mean()) / (df[col].std() + 1e-8)
+        return df
 
 def add_statistical_features(df: pd.DataFrame, target_col: str = 'Number') -> pd.DataFrame:
     """Add statistical features to the DataFrame."""

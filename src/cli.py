@@ -8,6 +8,8 @@ from src.utils import standardize_column_names  # Import centralized function
 from src.utils.monitoring_pipeline import setup_monitoring, run_monitoring_cycle
 import matplotlib.pyplot as plt
 import json
+from typing import Optional
+from pydantic import BaseModel, ValidationError
 
 try:
     from src.features.feature_engineering import FeatureEngineer
@@ -95,10 +97,24 @@ def visualize_results(results):
         plt.show()
 
 
+class CLIConfig(BaseModel):
+    data: str = 'data/historical_random_numbers.csv'
+    mode: str = 'predict'
+    model: str = 'ensemble'
+    monitor: bool = False
+    clean_data: bool = False
+    batch: Optional[str] = None
+
+
 def load_config(config_path):
-    """Load configuration from a JSON file."""
+    """Load and validate configuration from a JSON file using pydantic."""
     with open(config_path, 'r') as file:
-        config = json.load(file)
+        config_dict = json.load(file)
+    try:
+        config = CLIConfig(**config_dict)
+    except ValidationError as e:
+        logger.error(f"Invalid configuration file: {e}")
+        raise SystemExit(1)
     return config
 
 
@@ -119,9 +135,9 @@ def run_cli():
     # Load configuration if provided
     if args.config:
         config = load_config(args.config)
-        data_path = config.get('data', args.data)
-        mode = config.get('mode', args.mode)
-        model = config.get('model', args.model)
+        data_path = config.data
+        mode = config.mode
+        model = config.model
     else:
         data_path = args.data
         mode = args.mode

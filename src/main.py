@@ -1,19 +1,23 @@
 import os
 import sys
+import logging
 from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple, Union
+
 import pandas as pd
 import numpy as np
-import logging
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from .utils.enhanced_data_loader import EnhancedDataLoader
-# from .models.xgboost_model import XGBoostModel
+
+from src.utils.enhanced_data_loader import EnhancedDataLoader
+from src.models.xgboost_model import XGBoostModel
 try:
-    from .features.feature_engineering import FeatureEngineer
-    from .models.random_forest import RandomForestModel
-    from .models.markov_chain import MarkovChain
-    from .models.ensemble import EnhancedEnsemble, AdaptiveEnsemble
-    from .models.hybrid_forecaster import HybridForecaster
+    from src.features.feature_engineering import FeatureEngineer
+    from src.models.random_forest import RandomForestModel
+    from src.models.markov_chain import MarkovChain
+    from src.models.ensemble import EnhancedEnsemble
+    from src.models.adaptive_ensemble import AdaptiveEnsemble
+    from src.models.hybrid_forecaster import HybridForecaster
     FULL_MODELS_AVAILABLE = True
 except ImportError:
     FULL_MODELS_AVAILABLE = False
@@ -287,8 +291,7 @@ def main(data_path=None, model_type='ensemble'):
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         logger.info(f"Split data into train ({len(X_train)} samples) and test ({len(X_test)} samples)")
-        
-        # Train selected model(s)
+          # Train selected model(s)
         if not FULL_MODELS_AVAILABLE:
             logger.warning("Full models not available. Defaulting to XGBoost only.")
             model_type = 'xgb'
@@ -304,12 +307,12 @@ def main(data_path=None, model_type='ensemble'):
         
         if model_type == 'xgb' or model_type == 'ensemble':
             logger.info("Training XGBoost model...")
-            # xgb_model = XGBoostModel(n_estimators=100)
-            # xgb_model.fit(X_train, y_train)
-            # xgb_metrics = xgb_model.evaluate(X_test, y_test)
-            # results['models']['xgb'] = xgb_model
-            # results['metrics']['xgb'] = xgb_metrics
-            # logger.info(f"XGBoost performance: {xgb_metrics}")
+            xgb_model = XGBoostModel(n_estimators=100)
+            xgb_model.fit(X_train, y_train)
+            xgb_metrics = xgb_model.evaluate(X_test, y_test)
+            results['models']['xgb'] = xgb_model
+            results['metrics']['xgb'] = xgb_metrics
+            logger.info(f"XGBoost performance: {xgb_metrics}")
         
         if model_type == 'markov' or model_type == 'ensemble':
             logger.info("Training Markov Chain model...")

@@ -4,7 +4,8 @@ Test script for feature engineering and selection components.
 
 import pandas as pd
 import numpy as np
-from features import FeatureEngineer, FeatureSelector
+from src.features.feature_engineering import FeatureEngineer
+from src.features.feature_selection import FeatureSelector
 
 def test_feature_engineering():
     # Create sample data

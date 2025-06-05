@@ -8,6 +8,7 @@ warnings.warn(
 )
 
 # Re-export from the new location for backward compatibility
-from src.utils.enhanced_data_loader import EnhancedDataLoader, DataValidator
+from src.utils.enhanced_data_loader import EnhancedDataLoader
+from src.utils.data_loader import DataValidator, DataLoader
 
 # If needed, add any specific functionality that isn't part of the new implementation

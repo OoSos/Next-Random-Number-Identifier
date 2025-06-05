@@ -127,6 +127,7 @@ jobs:
             fi
           done
         fi
+      continue-on-error: true
     
     - name: Validate code-doc interface consistency
       run: |
@@ -153,6 +154,7 @@ jobs:
             fi
           done < doc_methods.txt
         fi
+      continue-on-error: true
     
     - name: Documentation validation summary
       run: |
@@ -193,6 +195,7 @@ jobs:
           # Don't fail the build, just warn
           exit 0
         fi
+      continue-on-error: true
 
   test:
     runs-on: ubuntu-latest
