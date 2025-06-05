@@ -98,8 +98,11 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         self._select_top_features()
         
         if self.verbose:
-            print(f"Selected {len(self.selected_features_)} features")
-            print(f"Top 10 features: {self.selected_features_[:10]}")
+            if self.selected_features_ is not None:
+                print(f"Selected {len(self.selected_features_)} features")
+                print(f"Top 10 features: {self.selected_features_[:10]}")
+            else:
+                print("No features were selected.")
         
         return self
         
@@ -335,14 +338,12 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         """
         if self.feature_importances_ is None:
             raise RuntimeError("Selector has not been fitted yet")
-        
         # Sort features by importance for plotting
         sorted_items = sorted(
             self.feature_importances_.items(),
             key=lambda x: x[1],
             reverse=True
         )
-        
         return {
             'features': [item[0] for item in sorted_items],
             'importances': [item[1] for item in sorted_items]
@@ -373,38 +374,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             'method_top_features': method_top_features,
             'overlap_with_ensemble': {
                 method: len(set(features) & set(self.selected_features_[:10]))
+                if self.selected_features_ is not None else 0
                 for method, features in method_top_features.items()
             }
         }
-    
-    """
-    Feature selection utility for NRNI.
-    Provides methods for selecting the most relevant features.
-    """
-    def __init__(self, method: str = 'correlation', threshold: float = 0.1) -> None:
-        """
-        Initialize the FeatureSelector.
-        
-        Args:
-            method (str): Feature selection method ('correlation', 'model', etc.)
-            threshold (float): Threshold for feature selection
-        """
-        self.method = method
-        self.threshold = threshold
-
-    def select(self, df: pd.DataFrame, target: Optional[str] = None) -> pd.DataFrame:
-        """
-        Select features from the DataFrame based on the chosen method.
-        
-        Args:
-            df (pd.DataFrame): Input data
-            target (Optional[str]): Target column for feature selection
-        Returns:
-            pd.DataFrame: DataFrame with selected features
-        """
-        if self.method == 'correlation' and target and target in df.columns:
-            corr = df.corr(numeric_only=True)[target].abs()
-            selected = corr[corr > self.threshold].index.tolist()
-            return df[selected]
-        # Add other selection methods as needed
-        return df

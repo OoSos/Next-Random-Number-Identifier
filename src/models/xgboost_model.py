@@ -21,6 +21,14 @@ class XGBoostModel(BaseModel):
             random_state (int): Random seed
             **kwargs: Additional model parameters
         """
+        # Parameter validation
+        if not (0 < learning_rate <= 1):
+            raise ValueError("learning_rate must be between 0 and 1")
+        if not isinstance(n_estimators, int) or n_estimators <= 0:
+            raise ValueError("n_estimators must be a positive integer")
+        if max_depth is not None and (not isinstance(max_depth, int) or max_depth <= 0):
+            raise ValueError("max_depth must be a positive integer or None")
+        
         super().__init__(name="XGBoost")
         from xgboost import XGBClassifier
         self.params = {
