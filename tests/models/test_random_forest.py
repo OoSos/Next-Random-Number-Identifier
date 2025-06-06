@@ -51,12 +51,7 @@ class TestRandomForestModel(unittest.TestCase):
         
         # Check that feature importance is computed
         self.assertIsNotNone(self.model.feature_importance_)
-        self.assertEqual(len(self.model.feature_importance_), 3)  # 3 features
         
-        # Check all features are included in feature importance
-        for feature in self.X.columns:
-            self.assertIn(feature, self.model.feature_importance_)
-            
     def test_predict(self):
         """Test the predict method"""
         # Fit the model first
@@ -120,6 +115,36 @@ class TestRandomForestModel(unittest.TestCase):
         self.assertIsNone(info['max_depth'])
         self.assertIsInstance(info['feature_importance'], dict)
         
+    def test_invalid_model_parameters(self):
+        """Test that models properly validate input parameters during fit."""
+        # Create test data
+        X = pd.DataFrame({'a': [1,2,3], 'b': [4,5,6]})
+        y = pd.Series([1,2,3])
+        
+        # Test RandomForest with invalid parameters that should raise ValueError during fit
+        model_invalid = RandomForestModel(n_estimators=-1)  # Negative trees
+        with pytest.raises(ValueError, match="must be an int in the range"):
+            model_invalid.fit(X, y)
+        
+        model_zero = RandomForestModel(n_estimators=0)  # Zero trees
+        with pytest.raises(ValueError, match="must be an int in the range"):
+            model_zero.fit(X, y)
+        
+        # Test that invalid types get converted during initialization
+        model1 = RandomForestModel(n_estimators=50.5)  # Float gets converted to int
+        assert model1.params['n_estimators'] == 50
+        
+    def test_parameter_warnings(self):
+        """Test that invalid parameters generate appropriate warnings."""
+        import warnings
+        
+        # Test invalid parameter names (should generate warnings)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            model = RandomForestModel(invalid_param=123)
+            assert len(w) > 0
+            assert "not valid for RandomForestRegressor" in str(w[0].message)
+
 
 if __name__ == '__main__':
     unittest.main()

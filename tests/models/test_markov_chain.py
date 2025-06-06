@@ -1,3 +1,4 @@
+# filepath: c:\Users\Owner\GitHubProjects\Next-Random-Number-Identifier\tests\models\test_markov_chain.py
 import unittest
 import sys
 import os
@@ -43,6 +44,32 @@ class TestMarkovChain(unittest.TestCase):
         self.assertEqual(custom_model.name, "CustomMarkov")
         self.assertEqual(custom_model.order, 3)
         self.assertEqual(custom_model.smoothing, 0.2)
+        
+    def test_invalid_model_parameters(self):
+        """Test that invalid model parameters raise appropriate errors"""
+        # Test negative order
+        with self.assertRaises(ValueError):
+            MarkovChain(order=-1)
+            
+        # Test zero order
+        with self.assertRaises(ValueError):
+            MarkovChain(order=0)
+            
+        # Test negative smoothing
+        with self.assertRaises(ValueError):
+            MarkovChain(smoothing=-0.1)
+            
+        # Test smoothing > 1
+        with self.assertRaises(ValueError):
+            MarkovChain(smoothing=1.5)
+            
+        # Test non-numeric order parameter
+        with self.assertRaises(TypeError):
+            MarkovChain(order="invalid")
+            
+        # Test non-numeric smoothing parameter  
+        with self.assertRaises(TypeError):
+            MarkovChain(smoothing="invalid")
         
     def test_create_sequence(self):
         """Test the sequence creation helper method"""

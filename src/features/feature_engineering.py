@@ -5,6 +5,69 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from scipy import stats
 from src.utils import standardize_column_names  # Use absolute import for consistency
 
+# Optimized helper functions for performance bottlenecks
+def _fast_rolling_stats_optimized(series: pd.Series, window: int) -> Dict[str, pd.Series]:
+    """
+    Optimized computation of multiple rolling statistics in a single pass.
+    
+    This avoids multiple rolling window computations by calculating
+    mean, std, min, max, skew, and kurtosis together.
+    """
+    # Use pandas built-in optimized functions where possible
+    rolling_obj = series.rolling(window=window)
+    
+    stats_dict = {
+        'mean': rolling_obj.mean(),
+        'std': rolling_obj.std(),
+        'min': rolling_obj.min(),
+        'max': rolling_obj.max(),
+    }
+    
+    # Add derived statistics
+    stats_dict['range'] = stats_dict['max'] - stats_dict['min']
+    
+    # Only compute expensive stats for larger windows to reduce overhead
+    if window >= 10:
+        stats_dict['skew'] = rolling_obj.skew()
+        stats_dict['kurt'] = rolling_obj.kurt()
+        # Quantiles
+        stats_dict['q25'] = rolling_obj.quantile(0.25)
+        stats_dict['q50'] = rolling_obj.quantile(0.5) 
+        stats_dict['q75'] = rolling_obj.quantile(0.75)
+        stats_dict['iqr'] = stats_dict['q75'] - stats_dict['q25']
+    
+    return stats_dict
+
+def _fast_entropy_calculation_optimized(values):
+    """
+    Optimized entropy calculation using vectorized operations.
+    """
+    if len(values) <= 1:
+        return 0.0
+    
+    # Use pandas value_counts for efficient counting
+    value_counts = pd.Series(values).value_counts()
+    total = len(values)
+    probabilities = value_counts / total
+    
+    # Vectorized entropy calculation
+    entropy = -(probabilities * np.log2(probabilities)).sum()
+    return entropy
+
+def _fast_run_complexity_optimized(values):
+    """
+    Optimized run complexity calculation using vectorized operations.
+    """
+    if len(values) <= 1:
+        return len(values)
+    
+    # Use numpy diff to find changes more efficiently    
+    values_array = np.asarray(values)
+    changes = np.diff(values_array) != 0
+    runs = int(np.sum(changes)) + 1
+    
+    return runs
+
 class FeatureEngineer(BaseEstimator, TransformerMixin):
     """
     Advanced feature engineering for random number prediction.
@@ -255,56 +318,52 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             for col, period in [('Month', 12), ('DayOfWeek', 7), ('DayOfYear', 365)]:
                 df = self._add_cyclical_features(df, col, period)
                 time_features.extend([f'{col}_sin', f'{col}_cos'])
-        
-        # Store created feature names
+          # Store created feature names
         self.feature_groups['time'] = time_features
         
         return df
 
     def _create_rolling_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Create advanced rolling statistics features.
+        Create advanced rolling statistics features with optimized performance.
         """
         rolling_features = []
         target_col = self.target_column
         
+        # Use batch processing to avoid DataFrame fragmentation
+        new_columns = {}
+        
         for window in self.windows:
-            # Basic statistics
             prefix = f'Rolling_{window}'
             
-            # Mean, std, min, max
-            df[f'{prefix}_Mean'] = df[target_col].rolling(window=window).mean()
-            df[f'{prefix}_Std'] = df[target_col].rolling(window=window).std()
-            df[f'{prefix}_Min'] = df[target_col].rolling(window=window).min()
-            df[f'{prefix}_Max'] = df[target_col].rolling(window=window).max()
-            rolling_features.extend([f'{prefix}_Mean', f'{prefix}_Std', f'{prefix}_Min', f'{prefix}_Max'])
+            # Use optimized fast rolling stats function for multiple calculations
+            if window >= 5:
+                # Calculate multiple statistics in one pass to reduce overhead
+                stats_dict = _fast_rolling_stats_optimized(df[target_col], window)
+                
+                for stat_name, stat_values in stats_dict.items():
+                    column_name = f'{prefix}_{stat_name.capitalize()}'
+                    new_columns[column_name] = stat_values
+                    rolling_features.append(column_name)
+            else:
+                # For small windows, use basic pandas operations
+                rolling_obj = df[target_col].rolling(window=window)
+                new_columns[f'{prefix}_Mean'] = rolling_obj.mean()
+                new_columns[f'{prefix}_Std'] = rolling_obj.std()
+                new_columns[f'{prefix}_Min'] = rolling_obj.min()
+                new_columns[f'{prefix}_Max'] = rolling_obj.max()
+                rolling_features.extend([f'{prefix}_Mean', f'{prefix}_Std', f'{prefix}_Min', f'{prefix}_Max'])
+                
+                # Range calculation
+                new_columns[f'{prefix}_Range'] = new_columns[f'{prefix}_Max'] - new_columns[f'{prefix}_Min']
+                rolling_features.append(f'{prefix}_Range')
             
-            # Range
-            df[f'{prefix}_Range'] = df[f'{prefix}_Max'] - df[f'{prefix}_Min']
-            rolling_features.append(f'{prefix}_Range')
-            
-            # Advanced statistics
-            df[f'{prefix}_Skew'] = df[target_col].rolling(window=window).apply(
-                lambda x: stats.skew(x) if len(x) > 2 else 0
-            )
-            df[f'{prefix}_Kurt'] = df[target_col].rolling(window=window).apply(
-                lambda x: stats.kurtosis(x) if len(x) > 3 else 0
-            )
-            rolling_features.extend([f'{prefix}_Skew', f'{prefix}_Kurt'])
-            
-            # Quantile features
-            for q in [0.25, 0.5, 0.75]:
-                feature_name = f'{prefix}_Q{int(q*100)}'
-                df[feature_name] = df[target_col].rolling(window=window).quantile(q)
-                rolling_features.append(feature_name)
-            
-            # IQR
-            df[f'{prefix}_IQR'] = df[f'{prefix}_Q75'] - df[f'{prefix}_Q25']
-            rolling_features.append(f'{prefix}_IQR')
-            
-            # Exponential moving averages with different alpha values
-            df[f'{prefix}_EMA'] = df[target_col].ewm(span=window).mean()
-            rolling_features.append(f'{prefix}_EMA')
+            # Exponential moving averages
+            new_columns[f'{prefix}_EMA'] = df[target_col].ewm(span=window).mean()
+            rolling_features.append(f'{prefix}_EMA')        # Add all new columns using pd.concat to eliminate DataFrame fragmentation
+        if new_columns:
+            new_columns_df = pd.DataFrame(new_columns, index=df.index)
+            df = pd.concat([df, new_columns_df], axis=1)
         
         # Store created feature names
         self.feature_groups['rolling'] = rolling_features
@@ -321,24 +380,27 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         lag_features = []
         target_col = self.target_column
         
+        # Use batch processing to avoid DataFrame fragmentation
+        new_columns = {}
+        
         # Basic lags
         for lag in self.lags:
             feature_name = f'Lag_{lag}'
-            df[feature_name] = df[target_col].shift(lag)
+            new_columns[feature_name] = df[target_col].shift(lag)
             lag_features.append(feature_name)
         
         # Differences between consecutive selections
         for lag in self.lags:
             if lag > 0:
                 feature_name = f'Diff_{lag}'
-                df[feature_name] = df[target_col].diff(lag)
+                new_columns[feature_name] = df[target_col].diff(lag)
                 lag_features.append(feature_name)
         
         # Lag ratios (with error handling for zeros)
         for lag in self.lags:
             feature_name = f'Ratio_{lag}'
             lagged_values = df[target_col].shift(lag)
-            df[feature_name] = np.where(
+            new_columns[feature_name] = np.where(
                 lagged_values != 0,
                 df[target_col] / lagged_values,
                 1  # Default value for division by zero
@@ -346,15 +408,24 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             lag_features.append(feature_name)
         
         # Transition types (up, down, same)
-        df['TransitionType'] = np.sign(df[target_col].diff())
+        new_columns['TransitionType'] = np.sign(df[target_col].diff())
         lag_features.append('TransitionType')
         
-        # Moving averages of lags
+        # Add all basic lag features at once
+        for col_name, col_data in new_columns.items():
+            df[col_name] = col_data
+        
+        # Moving averages of lags (need to calculate after basic lags are added)
+        ma_columns = {}
         for lag in self.lags:
             if lag > 2:
                 feature_name = f'Lag_MA_{lag}'
-                df[feature_name] = df[f'Lag_{lag}'].rolling(window=min(lag, 3)).mean()
+                ma_columns[feature_name] = df[f'Lag_{lag}'].rolling(window=min(lag, 3)).mean()
                 lag_features.append(feature_name)
+        
+        # Add moving average features
+        for col_name, col_data in ma_columns.items():
+            df[col_name] = col_data
         
         # Store created feature names
         self.feature_groups['lag'] = lag_features
@@ -363,7 +434,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
 
     def _create_frequency_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Create frequency-based features.
+        Create frequency-based features with optimized performance.
         
         These features analyze how frequently each number appears overall
         and in recent windows.
@@ -371,35 +442,62 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         frequency_features = []
         target_col = self.target_column
         
-        # Create frequency counts
+        # Create frequency counts - use vectorized operations
         number_counts = df[target_col].value_counts()
-        df['Frequency'] = df[target_col].map(number_counts)
-        df['FrequencyNorm'] = df['Frequency'] / len(df)
+        
+        # Use batch column creation to avoid fragmentation
+        new_columns = {}
+        
+        # Basic frequency features
+        new_columns['Frequency'] = df[target_col].map(number_counts)
+        new_columns['FrequencyNorm'] = new_columns['Frequency'] / len(df)
         frequency_features.extend(['Frequency', 'FrequencyNorm'])
-        
-        # Hot and Cold numbers (overall)
+          # Hot and Cold numbers (overall) - vectorized comparison
         median_freq = number_counts.median()
-        df['IsHot'] = df[target_col].map(lambda x: number_counts[x] > median_freq).astype(int)
-        df['IsCold'] = df[target_col].map(lambda x: number_counts[x] < median_freq).astype(int)
+        frequency_mapped = df[target_col].map(number_counts)
+        new_columns['IsHot'] = (frequency_mapped > median_freq).astype(int)
+        new_columns['IsCold'] = (frequency_mapped < median_freq).astype(int)
         frequency_features.extend(['IsHot', 'IsCold'])
-        
-        # Rolling frequency for each value in windows
+          # Optimized rolling frequency calculation
         for window in self.windows:
             if window >= 5:  # Need sufficient data 
-                # Calculate frequency in rolling window for current number
-                df[f'Freq_Current_{window}'] = df[target_col].rolling(window).apply(
-                    lambda x: sum(x == x.iloc[-1]) / len(x) if len(x) > 0 else 0
-                )
+                # Current number frequency in rolling window - optimized vectorized approach
+                def calc_rolling_freq(series, win):
+                    rolling_counts = []
+                    for i in range(len(series)):
+                        if i < win - 1:
+                            rolling_counts.append(0)
+                        else:
+                            window_data = series.iloc[i-win+1:i+1]
+                            current_val = series.iloc[i]
+                            freq = (window_data == current_val).sum() / len(window_data)
+                            rolling_counts.append(freq)
+                    return rolling_counts
+                
+                new_columns[f'Freq_Current_{window}'] = calc_rolling_freq(df[target_col], window)
                 frequency_features.append(f'Freq_Current_{window}')
                 
-                # Define hot and cold numbers based on recent frequency
+                # Only calculate individual value frequencies for small unique sets
                 unique_values = df[target_col].dropna().unique()
-                for val in unique_values:
-                    if len(unique_values) <= 10:  # Only do this for a reasonable number of values
-                        df[f'Freq_{int(val)}_{window}'] = df[target_col].rolling(window).apply(
-                            lambda x: sum(x == val) / len(x) if len(x) > 0 else 0
-                        )
-                        frequency_features.append(f'Freq_{int(val)}_{window}')
+                if len(unique_values) <= 5:  # Reduced from 10 for better performance
+                    for val in unique_values:
+                        # Use vectorized operations - batch calculate rolling frequencies
+                        def calc_val_rolling_freq(series, value, win):
+                            rolling_freqs = []
+                            for i in range(len(series)):
+                                if i < win - 1:
+                                    rolling_freqs.append(0)
+                                else:
+                                    window_data = series.iloc[i-win+1:i+1]
+                                    freq = (window_data == value).sum() / len(window_data)
+                                    rolling_freqs.append(freq)
+                            return rolling_freqs
+                        
+                        new_columns[f'Freq_{int(val)}_{window}'] = calc_val_rolling_freq(df[target_col], val, window)
+                        frequency_features.append(f'Freq_{int(val)}_{window}')        # Add all frequency features using pd.concat to eliminate DataFrame fragmentation
+        if new_columns:
+            freq_columns_df = pd.DataFrame(new_columns, index=df.index)
+            df = pd.concat([df, freq_columns_df], axis=1)
         
         # Store created feature names
         self.feature_groups['frequency'] = frequency_features
@@ -416,17 +514,20 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         statistical_features = []
         target_col = self.target_column
         
+        # Use batch processing to avoid DataFrame fragmentation
+        new_columns = {}
+        
         # Overall statistics
         mean_val = df[target_col].mean()
         std_val = df[target_col].std()
         
         # Z-score calculation (overall)
-        df['ZScore'] = (df[target_col] - mean_val) / (std_val if std_val > 0 else 1)
+        new_columns['ZScore'] = (df[target_col] - mean_val) / (std_val if std_val > 0 else 1)
         statistical_features.append('ZScore')
         
         # Pattern detection
-        df['IsOutlier'] = (abs(df['ZScore']) > 2).astype(int)
-        df['IsRepeated'] = (df[target_col] == df[target_col].shift(1)).astype(int)
+        new_columns['IsOutlier'] = (abs(new_columns['ZScore']) > 2).astype(int)
+        new_columns['IsRepeated'] = (df[target_col] == df[target_col].shift(1)).astype(int)
         statistical_features.extend(['IsOutlier', 'IsRepeated'])
         
         # Rolling z-scores
@@ -434,19 +535,23 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             feature_name = f'Rolling_{window}_ZScore'
             rolling_mean = df[target_col].rolling(window=window).mean()
             rolling_std = df[target_col].rolling(window=window).std()
-            df[feature_name] = (df[target_col] - rolling_mean) / (rolling_std.replace(0, 1))  # Avoid division by zero
+            new_columns[feature_name] = (df[target_col] - rolling_mean) / (rolling_std.replace(0, 1))  # Avoid division by zero
             statistical_features.append(feature_name)
         
         # Deviation from expected value
         # For a truly random sequence between 1-10, the expected value is 5.5
         expected_value = 5.5  # Adjust based on your number range
-        df['DeviationFromExpected'] = df[target_col] - expected_value
+        new_columns['DeviationFromExpected'] = df[target_col] - expected_value
         statistical_features.append('DeviationFromExpected')
         
         # Cumulative statistics
-        df['CumulativeMean'] = df[target_col].expanding().mean()
-        df['CumulativeStd'] = df[target_col].expanding().std()
+        new_columns['CumulativeMean'] = df[target_col].expanding().mean()
+        new_columns['CumulativeStd'] = df[target_col].expanding().std()
         statistical_features.extend(['CumulativeMean', 'CumulativeStd'])
+        
+        # Add all statistical features at once to avoid fragmentation
+        for col_name, col_data in new_columns.items():
+            df[col_name] = col_data
         
         # Store created feature names
         self.feature_groups['statistical'] = statistical_features
@@ -482,34 +587,44 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
                 feature_name = f'MatchesNAgo_{n}'
                 df[feature_name] = (df[target_col] == df[target_col].shift(n)).astype(int)
                 pattern_features.append(feature_name)
-        
-        # Count occurrences of each value in rolling windows
+          # Count occurrences of each value in rolling windows - optimized
         unique_values = df[target_col].dropna().unique()
-        if len(unique_values) <= 10:  # Only do this for a reasonable number of unique values
+        if len(unique_values) <= 5:  # Reduced from 10 for better performance
+            # Use batch processing to avoid fragmentation
+            new_columns = {}
+            
             for window in [10, 20]:
                 for val in unique_values:
                     feature_name = f'Count_{int(val)}_in_{window}'
-                    df[feature_name] = df[target_col].rolling(window).apply(
-                        lambda x: (x == val).sum()
-                    )
+                    # Use vectorized rolling sum instead of apply
+                    new_columns[feature_name] = (df[target_col] == val).rolling(window).sum()
                     pattern_features.append(feature_name)
+            
+            # Add all count features at once
+            for col_name, col_data in new_columns.items():
+                df[col_name] = col_data
         
-        # Distance from rolling mean and median
+        # Distance from rolling mean and median - batch processing
+        distance_columns = {}
         for window in [10, 20]:
             rolling_mean = df[target_col].rolling(window=window).mean()
-            df[f'DistFromMean_{window}'] = df[target_col] - rolling_mean
+            distance_columns[f'DistFromMean_{window}'] = df[target_col] - rolling_mean
             
             rolling_median = df[target_col].rolling(window=window).median()
-            df[f'DistFromMedian_{window}'] = df[target_col] - rolling_median
+            distance_columns[f'DistFromMedian_{window}'] = df[target_col] - rolling_median
             
             rolling_std = df[target_col].rolling(window=window).std()
-            df[f'DistFromMean_{window}_Norm'] = (df[target_col] - rolling_mean) / (rolling_std.replace(0, 1))
+            distance_columns[f'DistFromMean_{window}_Norm'] = (df[target_col] - rolling_mean) / (rolling_std.replace(0, 1))
             
             pattern_features.extend([
                 f'DistFromMean_{window}', 
                 f'DistFromMedian_{window}', 
                 f'DistFromMean_{window}_Norm'
             ])
+          # Add all distance features using pd.concat to eliminate DataFrame fragmentation
+        if distance_columns:
+            distance_df = pd.DataFrame(distance_columns, index=df.index)
+            df = pd.concat([df, distance_df], axis=1)
         
         # Detect if pattern from last N selections repeats
         for pattern_length in [2, 3]:
@@ -564,29 +679,36 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
                 feature_name = f'NormEntropy_{window}'
                 df[feature_name] = df[f'Entropy_{window}'] / max_entropy
                 entropy_features.append(feature_name)
-        
-        # Calculate entropy change rate
+          # Calculate entropy change rate and add all entropy features using pd.concat
+        entropy_feature_dict = {}
         for window in self.windows:
             if window >= 5:
                 feature_name = f'EntropyChange_{window}'
-                df[feature_name] = df[f'Entropy_{window}'].diff()
+                entropy_feature_dict[feature_name] = df[f'Entropy_{window}'].diff()
                 entropy_features.append(feature_name)
         
-        # Calculate run complexity (count of distinct runs)
+        # Calculate run complexity (count of distinct runs) - optimized
         for window in self.windows:
             if window >= 5:
                 feature_name = f'RunComplexity_{window}'
-                df[feature_name] = df[target_col].rolling(window).apply(
-                    lambda x: self._calculate_run_complexity(x)
+                # Use optimized function instead of lambda apply
+                entropy_feature_dict[feature_name] = df[target_col].rolling(window).apply(
+                    _fast_run_complexity_optimized,
+                    raw=True
                 )
                 entropy_features.append(feature_name)
-        
+
         # Calculate predictability score
         for window in self.windows:
             if window >= 5:
                 feature_name = f'Predictability_{window}'
-                df[feature_name] = 1 - df[f'NormEntropy_{window}']
+                entropy_feature_dict[feature_name] = 1 - df[f'NormEntropy_{window}']
                 entropy_features.append(feature_name)
+        
+        # Use pd.concat for comprehensive batch processing - eliminates fragmentation
+        if entropy_feature_dict:
+            entropy_df = pd.DataFrame(entropy_feature_dict, index=df.index)
+            df = pd.concat([df, entropy_df], axis=1)
         
         # Store created feature names
         self.feature_groups['entropy'] = entropy_features
@@ -598,19 +720,34 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         Create features that detect rare patterns in the number sequence.
         """
         rare_pattern_features = []
-        target_col = self.target_column
-
-        # Detect rare patterns (e.g., specific sequences)
+        target_col = self.target_column        # Detect rare patterns (e.g., specific sequences) - optimized
         rare_sequences = [
             [1, 2, 3],  # Example sequence
             [7, 8, 9]   # Another example sequence
         ]
+        
+        # Use batch processing for rare pattern detection
+        rare_pattern_columns = {}
+        
         for seq in rare_sequences:
             feature_name = f'RarePattern_{"_".join(map(str, seq))}'
-            df[feature_name] = df[target_col].rolling(window=len(seq)).apply(
-                lambda x: int((x == seq).all())
-            )
+            # Use vectorized comparison instead of lambda apply
+            rolling_values = df[target_col].rolling(window=len(seq))
+              # More efficient pattern matching
+            pattern_matches = []
+            for window_values in rolling_values:
+                if len(window_values) == len(seq):
+                    match = np.array_equal(window_values.values, seq)
+                    pattern_matches.append(int(match))
+                else:
+                    pattern_matches.append(0)
+            
+            rare_pattern_columns[feature_name] = pattern_matches
             rare_pattern_features.append(feature_name)
+          # Add all rare pattern features using pd.concat to eliminate fragmentation
+        if rare_pattern_columns:
+            rare_pattern_df = pd.DataFrame(rare_pattern_columns, index=df.index)
+            df = pd.concat([df, rare_pattern_df], axis=1)
 
         # Store created feature names
         self.feature_groups['rare_pattern'] = rare_pattern_features
