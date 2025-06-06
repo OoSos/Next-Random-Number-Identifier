@@ -14,44 +14,23 @@ from src.utils.enhanced_data_loader import EnhancedDataLoader
 @pytest.fixture
 def df():
     """Create a test DataFrame fixture."""
-    # Debug paths
     data_dir = project_root / "data"
     csv_path = data_dir / "historical_random_numbers.csv"
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Project root: {project_root}")
-    print(f"Data directory: {data_dir}")
-    print(f"Data directory exists: {data_dir.exists()}")
-    print(f"CSV path: {csv_path}")
-    print(f"CSV exists: {csv_path.exists()}")
     
     # Create data directory if it doesn't exist
     if not data_dir.exists():
-        print(f"Creating data directory: {data_dir}")
         data_dir.mkdir(parents=True, exist_ok=True)
-    
-    # List files in data directory
-    if data_dir.exists():
-        print("Files in data directory:")
-        for file in data_dir.iterdir():
-            print(f"  - {file.name} ({file.stat().st_size} bytes)")
     
     # Test loading CSV
     loader = EnhancedDataLoader(str(data_dir))
-    df = loader.load_csv("historical_random_numbers.csv")
-    print(f"Loaded DataFrame shape: {df.shape}")
     
-    if not df.empty:
-        print("DataFrame head:")
-        print(df.head())
-        print("\nDataFrame info:")
-        print(df.info())
-        print("\nDataFrame description:")
-        print(df.describe())
-    else:
-        print("DataFrame is empty!")
-        print("Creating sample data for testing...")
-        
-        # Create sample data
+    try:
+        df = loader.load_csv("historical_random_numbers.csv")
+        assert not df.empty, "Loaded DataFrame should not be empty"
+        assert 'Date' in df.columns, "DataFrame should contain 'Date' column"
+        assert 'Number' in df.columns, "DataFrame should contain 'Number' column"
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        # Create sample data for testing if file doesn't exist or is empty
         dates = pd.date_range(start='2020-01-01', end='2023-01-01', freq='D')
         numbers = np.random.randint(1, 11, size=len(dates))
         df = pd.DataFrame({'Date': dates, 'Number': numbers})
@@ -59,9 +38,11 @@ def df():
         # Save sample data to CSV
         sample_path = data_dir / "historical_random_numbers.csv"
         df.to_csv(sample_path, index=False)
-        print(f"Created sample data and saved to {sample_path}")
-        print(f"Sample data shape: {df.shape}")
-        print(df.head())
+        
+        # Verify sample data creation
+        assert not df.empty, "Sample DataFrame should not be empty"
+        assert len(df) > 0, "Sample DataFrame should have rows"
+        assert df.shape[1] == 2, "Sample DataFrame should have exactly 2 columns"
     
     return df
 
@@ -69,10 +50,7 @@ def df():
 def df_features(df):
     """Create a DataFrame with features fixture."""
     if df.empty:
-        print("\n=== Skipping FeatureEngineer test (empty DataFrame) ===")
-        return df
-    
-    print("\n=== Testing FeatureEngineer ===")
+        pytest.skip("Skipping FeatureEngineer test due to empty DataFrame")
     
     try:
         from src.features.feature_engineering import FeatureEngineer
@@ -83,17 +61,15 @@ def df_features(df):
         # Transform data
         try:
             df_features = feature_engineer.transform(df)
-            print(f"Generated {len(df_features.columns)} features")
-            print("\nSample feature columns:")
-            print(list(df_features.columns)[:10])
-            print("\nFeatures DataFrame head:")
-            print(df_features.head())
+            
+            # Validate feature engineering results
+            assert not df_features.empty, "Feature engineering should produce non-empty DataFrame"
+            assert len(df_features.columns) > len(df.columns), "Should generate additional features"
+            assert len(df_features) == len(df), "Should maintain same number of rows"
             
             return df_features
         except Exception as e:
-            print(f"Error in feature engineering: {str(e)}")
             # Return original DataFrame with added features as fallback
-            print("Using fallback feature engineering...")
             df_features = df.copy()
             # Add some basic features
             if 'Date' in df.columns:
