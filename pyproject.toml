@@ -84,7 +84,7 @@ dev = [
     "pytest-cov==2.12.1",
     "hypothesis==6.82.6",
     "black==22.3.0",
-    "isort==5.10.1",
+    "isort==6.0.1",
     "flake8==4.0.1",
     "mypy==0.910",
     "bandit[toml]==1.7.9",  # Added [toml] extra for bandit
@@ -99,7 +99,7 @@ full = [
     "pytest-cov==2.12.1",
     "hypothesis==6.82.6",
     "black==22.3.0",
-    "isort==5.10.1",
+    "isort==6.0.1",
     "flake8==4.0.1",
     "mypy==0.910",
     "sphinx==4.5.0",
