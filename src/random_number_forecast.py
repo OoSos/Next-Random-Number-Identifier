@@ -1,12 +1,15 @@
+# Standard library imports
+from collections import defaultdict
+from datetime import timedelta
+
+# Third-party imports
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error, accuracy_score, precision_score, recall_score, f1_score
-import matplotlib.pyplot as plt
-from datetime import timedelta
-from collections import defaultdict
+from xgboost import XGBClassifier
 
 # Load and prepare the data
 def load_data(file_path):

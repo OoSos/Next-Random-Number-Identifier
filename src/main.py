@@ -1,14 +1,17 @@
+# Standard library imports
 import os
 import sys
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Union
 
+# Third-party imports
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
+# Local application imports
 from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.models.xgboost_model import XGBoostModel
 try:
@@ -149,50 +152,12 @@ def ensure_directory_exists(directory_path: str) -> bool:
         logger.error(f"Failed to create directory {path}: {str(e)}")
         return False
 
-# Optional imports with error handling
-try:
-    from .utils.enhanced_data_loader import EnhancedDataLoader
-    logger.debug("Successfully imported EnhancedDataLoader")
-except ImportError:
-    logger.debug("EnhancedDataLoader import failed, will use DataLoader instead")
-    
-    try:
-        from src.utils.enhanced_data_loader import EnhancedDataLoader as EnhancedDataLoader
-        logger.debug("Using DataLoader as fallback")
-    except ImportError:
-        logger.debug("DataLoader import failed, will use SimpleDataLoader instead")
-        
-        try:
-            from .utils.simple_data_loader import SimpleDataLoader as EnhancedDataLoader
-            logger.debug("Using SimpleDataLoader as fallback")
-        except ImportError:
-            logger.debug("SimpleDataLoader import failed")
-            
-            # Define a minimal DataLoader as last resort
-            class EnhancedDataLoader:
-                """Minimal DataLoader implementation as fallback."""
-                def __init__(self, data_dir):
-                    self.data_dir = Path(data_dir)
-                    
-                def load_csv(self, filename):
-                    """Load CSV data with minimal functionality."""
-                    try:
-                        return pd.read_csv(self.data_dir / filename)
-                    except Exception as e:
-                        logger.error(f"Error loading CSV: {str(e)}")
-                        return pd.DataFrame()
-                        
-                def preprocess_data(self, df):
-                    """Minimal preprocessing."""
-                    return standardize_column_names(df)
-
 # Export public symbols
 __all__ = [
     'setup_logging',
     'standardize_column_names',
     'debug_file_path',
     'ensure_directory_exists',
-    'EnhancedDataLoader'
 ]
 
 
