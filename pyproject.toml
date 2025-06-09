@@ -77,7 +77,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-xgboost = ["xgboost==1.5.2"]
+xgboost = ["xgboost==2.1.4"]
 torch = ["torch==1.9.1"]
 dev = [
     "pytest==7.1.2",
@@ -93,7 +93,7 @@ dev = [
 test = ["pytest-cov==2.12.1"]
 doc = ["sphinx==4.5.0", "sphinx_rtd_theme==1.0.0"]
 full = [
-    "xgboost==1.5.2",
+    "xgboost==2.1.4",
     "torch==1.9.1",
     "pytest==7.1.2",
     "pytest-cov==2.12.1",
