@@ -1,10 +1,15 @@
+# Standard library imports
+from collections import defaultdict
 from typing import Dict, Tuple, List, Optional, Any
+
+# Third-party imports
 import numpy as np
 import pandas as pd
-from collections import defaultdict
-from .base_model import BaseModel
 from scipy.stats import norm
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+# Local application imports
+from src.models.base_model import BaseModel
 
 class MarkovChain(BaseModel):
     """Markov Chain model for sequence prediction."""

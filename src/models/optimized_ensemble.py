@@ -1,7 +1,12 @@
+# Standard library imports
 from typing import List, Dict, Any, Optional
+
+# Third-party imports
 import numpy as np
 from sklearn.base import BaseEstimator
-from .base_model import BaseModel
+
+# Local application imports
+from src.models.base_model import BaseModel
 
 class OptimizedEnsemble(BaseModel):
     """Ensemble model with optimized weights through grid search."""

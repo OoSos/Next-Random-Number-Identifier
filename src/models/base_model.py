@@ -1,7 +1,10 @@
+# Standard library imports
 from abc import ABC, abstractmethod
+from typing import Dict, Any
+
+# Third-party imports
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 class BaseModel(ABC):
     """
