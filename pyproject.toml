@@ -81,7 +81,7 @@ xgboost = ["xgboost==1.5.2"]
 torch = ["torch==1.9.1"]
 dev = [
     "pytest==7.1.2",
-    "pytest-cov==2.12.1",
+    "pytest-cov==6.1.1",
     "hypothesis==6.82.6",
     "black==22.3.0",
     "isort==5.10.1",
@@ -90,13 +90,13 @@ dev = [
     "bandit[toml]==1.7.9",  # Added [toml] extra for bandit
     "pip-audit==2.7.3"
 ]
-test = ["pytest-cov==2.12.1"]
+test = ["pytest-cov==6.1.1"]
 doc = ["sphinx==4.5.0", "sphinx_rtd_theme==1.0.0"]
 full = [
     "xgboost==1.5.2",
     "torch==1.9.1",
     "pytest==7.1.2",
-    "pytest-cov==2.12.1",
+    "pytest-cov==6.1.1",
     "hypothesis==6.82.6",
     "black==22.3.0",
     "isort==5.10.1",
