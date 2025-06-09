@@ -1,19 +1,22 @@
+# Standard library imports
 import os
 import sys
 import unittest
-import pandas as pd
-import numpy as np
 from pathlib import Path
 
-# Adjust path to import from project
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Third-party imports
+import pandas as pd
+import numpy as np
 
+# Local application imports
 from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.features.feature_engineering import FeatureEngineer
 from src.models.random_forest import RandomForestModel
 from src.models.ensemble import EnhancedEnsemble
 from src.models.markov_chain import MarkovChain
+
+# Define project root for test data access
+project_root = Path(__file__).parent.parent.parent
 
 
 class TestEnhancedDataLoaderIntegration(unittest.TestCase):

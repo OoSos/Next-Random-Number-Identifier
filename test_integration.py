@@ -1,9 +1,14 @@
+# Standard library imports
 import sys
 import os
+from pathlib import Path
+
+# Third-party imports
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import pytest
+
+# Local application imports
 from src.main import main
 from src.features.feature_engineering import FeatureEngineer
 

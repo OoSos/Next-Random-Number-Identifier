@@ -1,15 +1,18 @@
+# Standard library imports
 import os
 import sys
 from pathlib import Path
+
+# Third-party imports
 import pandas as pd
 import numpy as np
 import pytest
 
-# Add the project root to the path for imports
-project_root = Path(__file__).parent.parent.absolute()
-sys.path.insert(0, str(project_root))
-
+# Local application imports
 from src.utils.enhanced_data_loader import EnhancedDataLoader
+
+# Define project root for test data access
+project_root = Path(__file__).parent.parent.parent
 
 @pytest.fixture
 def df():

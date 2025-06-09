@@ -1,21 +1,20 @@
-"""
-Consolidated tests for data loading functionality.
-Combines basic functionality tests and simple loader tests.
-"""
+# Standard library imports
 import unittest
 import os
 import sys
-import pandas as pd
-import numpy as np
 from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# Third-party imports
+import pandas as pd
+import numpy as np
 
+# Local application imports
 from src.utils.simple_data_loader import SimpleDataLoader
 from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.utils.file_utils import debug_file_path
+
+# Define project root for test data access
+project_root = Path(__file__).parent.parent.parent
 
 class TestBasicLoaderFunctionality(unittest.TestCase):
     """Test cases for basic data loading functionality."""

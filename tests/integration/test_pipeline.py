@@ -1,15 +1,14 @@
-"""
-Integration tests for the complete pipeline.
-Consolidates all end-to-end and component integration tests.
-"""
-
+# Standard library imports
 import unittest
-import pytest
-import pandas as pd
-import numpy as np
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+# Third-party imports
+import pytest
+import pandas as pd
+import numpy as np
+
+# Local application imports
 from src.main import main
 from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.features.feature_engineering import FeatureEngineer

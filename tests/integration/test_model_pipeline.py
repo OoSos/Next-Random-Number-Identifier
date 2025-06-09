@@ -1,13 +1,12 @@
-"""
-Integration tests for the complete model pipeline.
-These tests verify that the entire forecasting pipeline works together correctly.
-"""
+# Standard library imports
+from pathlib import Path
 
+# Third-party imports
 import pytest
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
+# Local application imports
 from src.utils.enhanced_data_loader import EnhancedDataLoader
 from src.features.feature_engineering import FeatureEngineer
 from src.features.feature_selection import FeatureSelector
